@@ -1,5 +1,6 @@
 # --- Python ---
 venv/
+.venv/
 __pycache__/
 *.py[cod]
 .env
@@ -17,6 +18,10 @@ dbt/dbt_packages/
 # --- Données ---
 # Très important : on n'envoie JAMAIS les données brutes sur GitHub
 data/
+# Payloads JSON bruts (dev local, miroir type couche raw/)
+raw/**/*.json
+ingestion/raw/**/*.json
+ingestion/data/**/*.json
 
 # --- OS & IDE ---
 .DS_Store
