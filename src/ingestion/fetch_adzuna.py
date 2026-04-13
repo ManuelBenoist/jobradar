@@ -1,11 +1,17 @@
 import json
 import logging
 import os
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
+# Ensure the top-level src package is importable when running this file directly.
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+
 import requests
 from dotenv import load_dotenv
+
+from utils.logging_utils import mask_url
 
 load_dotenv()
 
@@ -84,7 +90,11 @@ def fetch_adzuna_jobs(
             distance,
         )
         response = requests.get(endpoint, params=params, timeout=30)
-        logger.info("Adzuna response status=%s url=%s", response.status_code, response.url)
+        logger.info(
+            "Adzuna response status=%s url=%s",
+            response.status_code,
+            mask_url(response.url),
+        )
         response.raise_for_status()
 
         payload = response.json()

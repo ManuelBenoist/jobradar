@@ -26,11 +26,12 @@ scan: ## Lance un audit de sécurité avec Gitleaks
 lint: ## Vérifie la qualité du code (PEP8)
 	$(PY_BIN) -m flake8 ingestion/ transform/
 
-ingest-raw: ## Étape 1: Récupère les offres Adzuna (JSON)
-	$(PY_BIN) ingestion/fetch_adzuna.py
+ingest-raw: ## Étape 1: Récupère les offres Adzuna et France Travail (JSON)
+	$(PY_BIN) src/ingestion/fetch_adzuna.py
+	$(PY_BIN) src/ingestion/fetch_france_travail.py
 
 load-duckdb: ## Étape 2: Charge les JSON dans DuckDB (Issue #4)
-	$(PY_BIN) ingestion/load_to_duckdb.py
+	$(PY_BIN) src/ingestion/load_to_duckdb.py
 
 clean: ## Nettoie les fichiers temporaires et les logs
 	rm -rf __pycache__
