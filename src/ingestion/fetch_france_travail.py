@@ -70,7 +70,7 @@ def _get_access_token(force_refresh: bool = False) -> str:
         "grant_type": "client_credentials",
         "client_id": client_id,
         "client_secret": client_secret,
-        "scope": "api_offresdemploiv2 o2dso"
+        "scope": "api_offresdemploiv2 o2dsoffre",
     }
     
     headers = {
@@ -174,7 +174,10 @@ def fetch_france_travail_offers(
             headers={"Authorization": f"Bearer {token}"},
             timeout=30,
         )
-        logger.info("France Travail response status=%s", response.status_code)
+        logger.info(
+            "France Travail response status=%s (expected 200 or 206 with range)",
+            response.status_code,
+        )
 
         if response.status_code == 429:
             raise RuntimeError("France Travail API rate limited (HTTP 429). Please retry later.")
@@ -204,9 +207,9 @@ def fetch_france_travail_offers(
         payload = response.json()
 
         if total_count is None:
-            total_count = payload.get("count")
+            total_count = payload.get("nbResultats")
 
-        page_results = payload.get("results") or []
+        page_results = payload.get("resultats", [])
         combined_results.extend(page_results)
         fetched_pages += 1
 
@@ -255,7 +258,7 @@ if __name__ == "__main__":
     parser.add_argument("--filter-departement", type=int, default=44, help="Département de recherche")
     parser.add_argument(
         "--keywords",
-        default="Data Engineer DevOps Cloud",
+        default="data",
         help="Mots clés métiers pour filtrer les offres",
     )
     parser.add_argument("--page", type=int, default=1, help="Page de départ pour la pagination range")
