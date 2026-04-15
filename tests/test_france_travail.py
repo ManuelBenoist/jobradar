@@ -34,22 +34,24 @@ def test_fetch_france_travail_offers_saves_raw_payload(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv("FRANCE_TRAVAIL_CLIENT_ID", "test-client")
     monkeypatch.setenv("FRANCE_TRAVAIL_CLIENT_SECRET", "test-secret")
+    monkeypatch.setenv("FRANCE_TRAVAIL_OAUTH_TOKEN_URL", "https://auth.francetravail.io/oauth2/token")
     _reset_token_cache()
 
-    def fake_post(url, data, auth, timeout, headers):
+    def fake_post(url, data=None, headers=None, timeout=None, **kwargs):
         assert url == "https://auth.francetravail.io/oauth2/token"
         assert data["grant_type"] == "client_credentials"
-        assert auth == ("test-client", "test-secret")
+        assert data["client_id"] == "test-client"
+        assert data["client_secret"] == "test-secret"
         return FakeResponse(url=url, payload={"access_token": "token-123", "expires_in": 3600})
 
-    def fake_get(endpoint, params, headers, timeout):
+    def fake_get(endpoint, params=None, headers=None, timeout=None, **kwargs):
         assert params["range"] == "0-49"
         assert params["departement"] == 44
         assert params["motsCles"] == "Data Engineer DevOps Cloud"
         assert headers["Authorization"] == "Bearer token-123"
         return FakeResponse(
             url=endpoint,
-            payload={"count": 1, "results": [{"title": "Data Engineer Nantes"}]},
+            payload={"nbResultats": 1, "resultats": [{"title": "Data Engineer Nantes"}]},
         )
 
     monkeypatch.setattr("ingestion.fetch_france_travail.requests.post", fake_post)
@@ -61,23 +63,24 @@ def test_fetch_france_travail_offers_saves_raw_payload(tmp_path, monkeypatch):
     saved_files = list((tmp_path / "data" / "raw").glob("france_travail_*.json"))
     assert len(saved_files) == 1
     loaded = json.loads(saved_files[0].read_text(encoding="utf-8"))
-    assert loaded == {"count": 1, "results": [{"title": "Data Engineer Nantes"}]}
+    assert loaded == {"nbResultats": 1, "resultats": [{"title": "Data Engineer Nantes"}]}
 
 
 def test_fetch_france_travail_offers_refreshes_token_on_401(tmp_path, monkeypatch):
     monkeypatch.chdir(tmp_path)
     monkeypatch.setenv("FRANCE_TRAVAIL_CLIENT_ID", "test-client")
     monkeypatch.setenv("FRANCE_TRAVAIL_CLIENT_SECRET", "test-secret")
+    monkeypatch.setenv("FRANCE_TRAVAIL_OAUTH_TOKEN_URL", "https://auth.francetravail.io/oauth2/token")
     _reset_token_cache()
 
     token_calls = []
     request_calls = []
 
-    def fake_post(url, data, auth, timeout, headers):
-        token_calls.append(auth)
+    def fake_post(url, data=None, headers=None, timeout=None, **kwargs):
+        token_calls.append((data or {}).get("client_id"))
         return FakeResponse(url=url, payload={"access_token": f"token-{len(token_calls)}", "expires_in": 3600})
 
-    def fake_get(endpoint, params, headers, timeout):
+    def fake_get(endpoint, params=None, headers=None, timeout=None, **kwargs):
         assert params["range"] == "0-49"
         assert params["departement"] == 44
         assert params["motsCles"] == "Data Engineer DevOps Cloud"
@@ -86,7 +89,7 @@ def test_fetch_france_travail_offers_refreshes_token_on_401(tmp_path, monkeypatc
             return FakeResponse(url=endpoint, payload={"error": "Unauthorized"}, status_code=401)
         return FakeResponse(
             url=endpoint,
-            payload={"count": 1, "results": [{"title": "Data Engineer Nantes"}]},
+            payload={"nbResultats": 1, "resultats": [{"title": "Data Engineer Nantes"}]},
         )
 
     monkeypatch.setattr("ingestion.fetch_france_travail.requests.post", fake_post)
@@ -105,10 +108,10 @@ def test_fetch_france_travail_offers_rate_limit_raises(tmp_path, monkeypatch):
     monkeypatch.setenv("FRANCE_TRAVAIL_CLIENT_SECRET", "test-secret")
     _reset_token_cache()
 
-    def fake_post(url, data, auth, timeout, headers):
+    def fake_post(url, data=None, headers=None, timeout=None, **kwargs):
         return FakeResponse(url=url, payload={"access_token": "token-123", "expires_in": 3600})
 
-    def fake_get(endpoint, params, headers, timeout):
+    def fake_get(endpoint, params=None, headers=None, timeout=None, **kwargs):
         assert params["range"] == "0-49"
         assert params["departement"] == 44
         assert params["motsCles"] == "Data Engineer DevOps Cloud"

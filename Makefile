@@ -34,6 +34,9 @@ ingest-raw: ## Étape 1: Récupère les offres Adzuna et France Travail (JSON)
 	$(PY_BIN) src/ingestion/fetch_adzuna.py
 	$(PY_BIN) src/ingestion/fetch_france_travail.py
 
+ingest-daily: ## Lance l'ingestion complète (fetch + load) pour une exécution quotidienne
+	$(PY_BIN) src/ingestion/orchestrator.py
+
 load-duckdb: ## Étape 2: Charge les JSON dans DuckDB (Issue #4)
 	$(PY_BIN) src/ingestion/load_to_duckdb.py
 
