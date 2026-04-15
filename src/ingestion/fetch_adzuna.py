@@ -4,6 +4,7 @@ import os
 import sys
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import Optional
 
 # Ensure the top-level src package is importable when running this file directly.
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -43,7 +44,7 @@ def fetch_adzuna_jobs(
     page: int = 1,
     results_per_page: int = 50,
     fetch_all: bool = False,
-    max_pages: int | None = None,
+    max_pages: Optional[int] = None,
 ) -> dict:
     batch_id = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
     """Fetch Adzuna job offers and store the raw payload.

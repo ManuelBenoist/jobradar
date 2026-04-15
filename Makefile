@@ -1,5 +1,5 @@
 # Variables
-PYTHON = python3
+PYTHON ?= $(shell command -v /opt/homebrew/bin/python3 2>/dev/null || command -v python3)
 VENV = .venv
 PIP = $(VENV)/bin/pip
 PY_BIN = $(VENV)/bin/python
@@ -21,7 +21,11 @@ setup: ## Initialise l'environnement virtuel et installe les dépendances
 	@echo "✅ Environnement prêt. Activez-le avec: source .venv/bin/activate"
 
 scan: ## Lance un audit de sécurité avec Gitleaks
-	gitleaks detect --source . -v
+	@if command -v gitleaks >/dev/null 2>&1; then \
+		gitleaks detect --source . -v; \
+	else \
+		echo "⚠️ gitleaks non installé. Installez-le avec: brew install gitleaks"; \
+	fi
 
 lint: ## Vérifie la qualité du code (PEP8)
 	$(PY_BIN) -m flake8 ingestion/ transform/

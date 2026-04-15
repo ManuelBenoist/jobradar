@@ -4,6 +4,7 @@ import os
 import sys
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
+from typing import Optional
 
 # Ensure the top-level src package is importable when running this file directly.
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -104,7 +105,7 @@ def _get_output_path(base_dir: Path, batch_id: str, page: int) -> Path:
     return base_dir / filename
 
 
-def _get_batch_id(batch_id: str | None) -> str:
+def _get_batch_id(batch_id: Optional[str]) -> str:
     return batch_id or datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
 
 
@@ -124,8 +125,8 @@ def fetch_france_travail_offers(
     page: int = 1,
     per_page: int = 50,
     fetch_all: bool = False,
-    max_pages: int | None = None,
-    batch_id: str | None = None,
+    max_pages: Optional[int] = None,
+    batch_id: Optional[str] = None,
 ) -> dict:
     """Fetch France Travail offers and save raw pages to data/raw.
 
@@ -264,17 +265,24 @@ if __name__ == "__main__":
     parser.add_argument("--batch-id", type=str, default=None, help="Identifiant de batch pour nommer les fichiers bruts")
     args = parser.parse_args()
 
-    result = fetch_france_travail_offers(
-        filter_departement=args.filter_departement,
-        keywords=args.keywords,
-        page=args.page,
-        per_page=args.per_page,
-        fetch_all=args.fetch_all,
-        max_pages=args.max_pages,
-        batch_id=args.batch_id,
-    )
+    try:
+        result = fetch_france_travail_offers(
+            filter_departement=args.filter_departement,
+            keywords=args.keywords,
+            page=args.page,
+            per_page=args.per_page,
+            fetch_all=args.fetch_all,
+            max_pages=args.max_pages,
+            batch_id=args.batch_id,
+        )
 
-    print(
-        f"Fetched {result.get('count', len(result.get('results', [])))} offers "
-        f"across {result.get('pages', 1)} page(s)"
-    )
+        print(
+            f"Fetched {result.get('count', len(result.get('results', [])))} offers "
+            f"across {result.get('pages', 1)} page(s)"
+        )
+    except EnvironmentError as exc:
+        logger.warning(str(exc))
+        logger.warning(
+            "France Travail skipped. Set FRANCE_TRAVAIL_CLIENT_ID and FRANCE_TRAVAIL_CLIENT_SECRET in .env to enable this source."
+        )
+        sys.exit(0)
