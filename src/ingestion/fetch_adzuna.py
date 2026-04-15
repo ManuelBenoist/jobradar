@@ -13,15 +13,12 @@ import requests
 from dotenv import load_dotenv
 
 from utils.common import get_batch_id, slugify_query
-from utils.logging_utils import mask_url
+from utils.logging_utils import configure_logging, mask_url
 
+configure_logging()
 load_dotenv()
 
 logger = logging.getLogger(__name__)
-logging.basicConfig(
-    format="%(asctime)s [%(levelname)s] %(message)s",
-    level=logging.INFO,
-)
 
 
 def _require_env_var(name: str) -> str:
@@ -88,7 +85,7 @@ def fetch_adzuna_jobs(
             "results_per_page": results_per_page,
         }
 
-        logger.info(
+        logger.debug(
             "Requesting Adzuna jobs page=%s what=%s where=%s distance=%s",
             current_page,
             what,
@@ -96,7 +93,7 @@ def fetch_adzuna_jobs(
             distance,
         )
         response = requests.get(endpoint, params=params, timeout=30)
-        logger.info(
+        logger.debug(
             "Adzuna response status=%s url=%s",
             response.status_code,
             mask_url(response.url),
@@ -115,22 +112,27 @@ def fetch_adzuna_jobs(
         with output_path.open("w", encoding="utf-8") as fp:
             json.dump(payload, fp, ensure_ascii=False, indent=2)
 
-        logger.info("Saved raw Adzuna payload to %s", output_path)
-        logger.info("Page %s returned %s offer(s)", current_page, len(page_results))
+        logger.info(
+            "💾 [Fichier: %s] -> %s offres sauvegardées",
+            output_path.name,
+            len(page_results),
+        )
+        logger.debug("Saved raw Adzuna payload to %s", output_path)
+        logger.debug("Page %s returned %s offer(s)", current_page, len(page_results))
 
         if not fetch_all:
             break
 
         if max_pages is not None and fetched_pages >= max_pages:
-            logger.info("Reached max_pages=%s, stopping pagination.", max_pages)
+            logger.debug("Reached max_pages=%s, stopping pagination.", max_pages)
             break
 
         if isinstance(total_count, int) and len(combined_results) >= total_count:
-            logger.info("Fetched all %s offers according to count, stopping pagination.", total_count)
+            logger.debug("Fetched all %s offers according to count, stopping pagination.", total_count)
             break
 
         if len(page_results) == 0:
-            logger.info("No more results returned at page=%s, stopping pagination.", current_page)
+            logger.debug("No more results returned at page=%s, stopping pagination.", current_page)
             break
 
         current_page += 1

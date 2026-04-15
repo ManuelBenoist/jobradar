@@ -13,14 +13,12 @@ import requests
 from dotenv import load_dotenv
 
 from utils.common import get_batch_id, slugify_query
+from utils.logging_utils import configure_logging
 
+configure_logging()
 load_dotenv()
 
 logger = logging.getLogger(__name__)
-logging.basicConfig(
-    format="%(asctime)s [%(levelname)s] %(message)s",
-    level=logging.INFO,
-)
 
 _TOKEN_CACHE: dict[str, datetime] = {
     "access_token": None,
@@ -65,7 +63,7 @@ def _get_access_token(force_refresh: bool = False) -> str:
     client_secret = _require_env_var("FRANCE_TRAVAIL_CLIENT_SECRET")
     token_url = _get_oauth_token_url()
 
-    logger.info("Requesting France Travail OAuth2 token...")
+    logger.debug("Requesting France Travail OAuth2 token...")
 
     # France Travail préfère souvent les credentials dans le corps de la requête
     payload = {
@@ -98,7 +96,7 @@ def _get_access_token(force_refresh: bool = False) -> str:
     _TOKEN_CACHE["access_token"] = access_token
     _TOKEN_CACHE["expires_at"] = now + timedelta(seconds=expires_in)
 
-    logger.info("France Travail OAuth2 token acquired.")
+    logger.debug("France Travail OAuth2 token acquired.")
     return access_token
 
 
@@ -167,7 +165,7 @@ def fetch_france_travail_offers(
             "motsCles": keywords,
         }
 
-        logger.info(
+        logger.debug(
             "Requesting France Travail offers range=%s departement=%s",
             params["range"],
             filter_departement,
@@ -178,7 +176,7 @@ def fetch_france_travail_offers(
             headers={"Authorization": f"Bearer {token}"},
             timeout=30,
         )
-        logger.info(
+        logger.debug(
             "France Travail response status=%s (expected 200 or 206 with range)",
             response.status_code,
         )
@@ -203,7 +201,7 @@ def fetch_france_travail_offers(
 
         response.raise_for_status()
         if response.status_code == 204:
-            logger.info("No content returned (204) for this range.")
+            logger.debug("No content returned (204) for this range.")
             if total_count is None:
                 total_count = 0
             break
@@ -221,25 +219,30 @@ def fetch_france_travail_offers(
         with output_path.open("w", encoding="utf-8") as fp:
             json.dump(payload, fp, ensure_ascii=False, indent=2)
 
-        logger.info("Saved raw France Travail payload to %s", output_path)
-        logger.info("Range %s returned %s offer(s)", params["range"], len(page_results))
+        logger.info(
+            "💾 [Fichier: %s] -> %s offres sauvegardées",
+            output_path.name,
+            len(page_results),
+        )
+        logger.debug("Saved raw France Travail payload to %s", output_path)
+        logger.debug("Range %s returned %s offer(s)", params["range"], len(page_results))
 
         if not fetch_all:
             break
 
         if max_pages is not None and fetched_pages >= max_pages:
-            logger.info("Reached max_pages=%s, stopping pagination.", max_pages)
+            logger.debug("Reached max_pages=%s, stopping pagination.", max_pages)
             break
 
         if isinstance(total_count, int) and len(combined_results) >= total_count:
-            logger.info(
+            logger.debug(
                 "Fetched all %s offers according to count, stopping pagination.",
                 total_count,
             )
             break
 
         if len(page_results) == 0:
-            logger.info("No more results returned at range=%s, stopping pagination.", params["range"])
+            logger.debug("No more results returned at range=%s, stopping pagination.", params["range"])
             break
 
         start += per_page
@@ -251,6 +254,12 @@ def fetch_france_travail_offers(
     }
     if fetched_pages > 1:
         combined_payload["pages"] = fetched_pages
+
+    logger.info(
+        "France Travail fetched %s total offer(s) across %s page(s)",
+        len(combined_results),
+        fetched_pages,
+    )
 
     return combined_payload
 

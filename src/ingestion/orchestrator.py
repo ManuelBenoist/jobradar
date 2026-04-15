@@ -11,12 +11,10 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from ingestion.fetch_adzuna import fetch_adzuna_jobs
 from ingestion.fetch_france_travail import fetch_france_travail_offers
 from utils.common import get_batch_id, slugify_query
+from utils.logging_utils import configure_logging
 
+configure_logging()
 logger = logging.getLogger(__name__)
-logging.basicConfig(
-    format="%(asctime)s [%(levelname)s] %(message)s",
-    level=logging.INFO,
-)
 
 DEFAULT_SEARCH_KEYWORDS = [
     "Data Engineer",
@@ -50,11 +48,19 @@ def run_daily_ingestion(
     batch_id = get_batch_id(batch_id)
     results: dict[str, dict] = {}
 
-    logger.info("Starting daily ingestion batch=%s with %s keyword(s)", batch_id, len(keywords))
+    logger.info(
+        "🚀 Starting daily ingestion batch=%s with %s keyword(s)",
+        batch_id,
+        len(keywords),
+    )
 
     for keyword in keywords:
         query_label = slugify_query(keyword)
-        logger.info("Running query=%s batch=%s", keyword, batch_id)
+        logger.info(
+            "🚀 Début fetch France Travail keyword=%s batch=%s",
+            keyword,
+            batch_id,
+        )
 
         try:
             results[f"france_travail/{query_label}"] = fetch_france_travail_offers(
@@ -72,6 +78,12 @@ def run_daily_ingestion(
             logger.exception("France Travail ingestion failed for %s", keyword)
 
         time.sleep(throttle_seconds)
+
+        logger.info(
+            "🚀 Début fetch Adzuna keyword=%s batch=%s",
+            keyword,
+            batch_id,
+        )
 
         try:
             results[f"adzuna/{query_label}"] = fetch_adzuna_jobs(
@@ -91,7 +103,7 @@ def run_daily_ingestion(
 
         time.sleep(throttle_seconds)
 
-    logger.info("Daily ingestion batch=%s completed", batch_id)
+    logger.info("✅ Daily ingestion batch=%s completed", batch_id)
     return results
 
 
