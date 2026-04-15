@@ -10,6 +10,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from ingestion.fetch_adzuna import fetch_adzuna_jobs
 from ingestion.fetch_france_travail import fetch_france_travail_offers
+from utils.common import get_batch_id, slugify_query
 
 logger = logging.getLogger(__name__)
 logging.basicConfig(
@@ -22,27 +23,12 @@ DEFAULT_SEARCH_KEYWORDS = [
     "Data Analyst",
     "DevOps",
     "Ingénieur DevOps",
-    "Cloud",
     "Machine Learning",
 ]
 DEFAULT_ADZUNA_WHERE = "Nantes"
 DEFAULT_ADZUNA_DISTANCE = 20
 DEFAULT_FRANCE_TRAVAIL_DEPARTEMENT = 44
 DEFAULT_THROTTLE_SECONDS = 0.2
-
-
-def _slugify_query(query: str, max_length: int = 40) -> str:
-    import re
-    import unicodedata
-
-    normalized = unicodedata.normalize("NFKD", query)
-    ascii_text = normalized.encode("ascii", "ignore").decode("ascii")
-    slug = re.sub(r"[^a-z0-9]+", "_", ascii_text.strip().lower()).strip("_")
-    return slug[:max_length].rstrip("_") or "query"
-
-
-def _get_batch_id(batch_id: Optional[str] = None) -> str:
-    return batch_id or datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
 
 
 def run_daily_ingestion(
@@ -61,13 +47,13 @@ def run_daily_ingestion(
 ) -> dict[str, dict]:
     """Collecte quotidienne des offres depuis France Travail et Adzuna."""
     keywords = list(keywords or DEFAULT_SEARCH_KEYWORDS)
-    batch_id = _get_batch_id(batch_id)
+    batch_id = get_batch_id(batch_id)
     results: dict[str, dict] = {}
 
     logger.info("Starting daily ingestion batch=%s with %s keyword(s)", batch_id, len(keywords))
 
     for keyword in keywords:
-        query_label = _slugify_query(keyword)
+        query_label = slugify_query(keyword)
         logger.info("Running query=%s batch=%s", keyword, batch_id)
 
         try:

@@ -1,9 +1,7 @@
 import json
 import logging
 import os
-import re
 import sys
-import unicodedata
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
@@ -14,6 +12,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import requests
 from dotenv import load_dotenv
 
+from utils.common import get_batch_id, slugify_query
 from utils.logging_utils import mask_url
 
 load_dotenv()
@@ -35,17 +34,6 @@ def _require_env_var(name: str) -> str:
     return value
 
 
-def _get_batch_id(batch_id: Optional[str]) -> str:
-    return batch_id or datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
-
-
-def _slugify_query(query: str, max_length: int = 40) -> str:
-    normalized = unicodedata.normalize("NFKD", query)
-    ascii_text = normalized.encode("ascii", "ignore").decode("ascii")
-    slug = re.sub(r"[^a-z0-9]+", "_", ascii_text.strip().lower()).strip("_")
-    return slug[:max_length].rstrip("_") or "query"
-
-
 def _get_output_path(base_dir: Path, batch_id: str, query_label: str, page: int) -> Path:
     return base_dir / f"adzuna_{batch_id}_{query_label}_page{page}.json"
 
@@ -61,8 +49,6 @@ def fetch_adzuna_jobs(
     batch_id: Optional[str] = None,
     query_name: Optional[str] = None,
 ) -> dict:
-    batch_id = _get_batch_id(batch_id)
-    query_label = _slugify_query(query_name or what)
     """Fetch Adzuna job offers and store the raw payload.
 
     Args:
@@ -77,6 +63,9 @@ def fetch_adzuna_jobs(
     Returns:
         The combined JSON payload of the fetched page(s).
     """
+    batch_id = get_batch_id(batch_id)
+    query_label = slugify_query(query_name or what)
+
     app_id = _require_env_var("ADZUNA_APP_ID")
     app_key = _require_env_var("ADZUNA_APP_KEY")
 

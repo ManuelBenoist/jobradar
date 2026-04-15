@@ -1,9 +1,7 @@
 import json
 import logging
 import os
-import re
 import sys
-import unicodedata
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from typing import Optional
@@ -13,6 +11,8 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import requests
 from dotenv import load_dotenv
+
+from utils.common import get_batch_id, slugify_query
 
 load_dotenv()
 
@@ -102,13 +102,6 @@ def _get_access_token(force_refresh: bool = False) -> str:
     return access_token
 
 
-def _slugify_query(query: str, max_length: int = 40) -> str:
-    normalized = unicodedata.normalize("NFKD", query)
-    ascii_text = normalized.encode("ascii", "ignore").decode("ascii")
-    slug = re.sub(r"[^a-z0-9]+", "_", ascii_text.strip().lower()).strip("_")
-    return slug[:max_length].rstrip("_") or "query"
-
-
 def _get_output_path(base_dir: Path, batch_id: str, query_label: str, page: int) -> Path:
     filename = (
         f"france_travail_{batch_id}_{query_label}.json"
@@ -116,10 +109,6 @@ def _get_output_path(base_dir: Path, batch_id: str, query_label: str, page: int)
         else f"france_travail_{batch_id}_{query_label}_page{page}.json"
     )
     return base_dir / filename
-
-
-def _get_batch_id(batch_id: Optional[str]) -> str:
-    return batch_id or datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
 
 
 def _get_range(start: int, per_page: int) -> str:
@@ -156,8 +145,8 @@ def fetch_france_travail_offers(
     Returns:
         Combined JSON payload containing the fetched offers and optional page count.
     """
-    batch_id = _get_batch_id(batch_id)
-    query_label = _slugify_query(query_name or keywords)
+    batch_id = get_batch_id(batch_id)
+    query_label = slugify_query(query_name or keywords)
     per_page = _validate_per_page(per_page)
 
     raw_dir = Path("data") / "raw"
