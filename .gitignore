@@ -40,3 +40,16 @@ terraform.tfstate
 *.tfvars
 *.tfvars.json
 crash.log
+*.zip
+
+# --- LAMBDAS (Dépendances) ---
+# On ignore tous les dossiers générés par 'pip install -t .'
+src/lambda/adzuna/*
+src/lambda/france_travail/*
+
+# Mais on force Git à garder nos scripts Python et fichiers de configuration !
+!src/lambda/adzuna/*.py
+!src/lambda/adzuna/requirements.txt
+!src/lambda/france_travail/*.py
+!src/lambda/france_travail/requirements.txt
+
