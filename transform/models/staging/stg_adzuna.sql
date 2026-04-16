@@ -8,6 +8,7 @@ renamed AS (
         (job_data).title::VARCHAR AS title,
         (job_data).company.display_name::VARCHAR AS company_name,
         (job_data).salary_min::FLOAT AS salary_min,
+        (job_data).location.display_name::VARCHAR AS location,
         (job_data).created::TIMESTAMP AS created_at,
         'Adzuna' AS source_name
     FROM source

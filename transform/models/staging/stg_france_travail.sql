@@ -8,6 +8,7 @@ renamed AS (
         (job_data).intitule::VARCHAR AS title,
         COALESCE((job_data).entreprise.nom, 'Non renseigné')::VARCHAR AS company_name,
         (job_data).salaire.libelle::VARCHAR AS salary_raw,
+        (job_data).lieuTravail.libelle::VARCHAR AS location,
         (job_data).dateCreation::TIMESTAMP AS created_at,
         'France Travail' AS source_name
     FROM source
