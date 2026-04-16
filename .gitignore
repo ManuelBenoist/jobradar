@@ -31,3 +31,12 @@ ingestion/data/**/*.json
 .DS_Store
 .vscode/
 .cursor/
+
+# --- Terraform ---
+**/.terraform/
+terraform.tfstate
+*.tfstate
+*.tfstate.*
+*.tfvars
+*.tfvars.json
+crash.log
