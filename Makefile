@@ -3,6 +3,7 @@ PYTHON ?= $(shell command -v /opt/homebrew/bin/python3 2>/dev/null || command -v
 VENV = .venv
 PIP = $(VENV)/bin/pip
 PY_BIN = $(VENV)/bin/python
+DBT = $(VENV)/bin/dbt
 
 # Couleurs pour le terminal
 HELP_COLOR = \033[36m
@@ -51,3 +52,13 @@ reset-data: ## Supprime la base DuckDB et les données raw pour repartir à zér
 	rm -f data/raw/*.json
 	rm -f jobradar.duckdb
 	@echo "🗑️  Données supprimées."
+
+transform-data: ## Étape 3: Transforme les données
+	cd transform && $(abspath $(DBT)) run --select staging
+	cd transform && $(abspath $(DBT)) run --select intermediate
+	cd transform && $(abspath $(DBT)) run --select marts
+
+run-pipeline: ## Exécute l'ensemble du pipeline (ingestion + transformation)
+	$(MAKE) ingest-daily
+	$(MAKE) load-duckdb
+	$(MAKE) transform-data
