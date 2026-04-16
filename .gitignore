@@ -5,11 +5,14 @@ __pycache__/
 *.py[cod]
 .env
 *.egg-info
+*.pyc
 
 # --- dbt ---
-dbt/logs/
-dbt/target/
-dbt/dbt_packages/
+transform/logs/
+transform/target/
+transform/dbt_packages/
+transform/logs/
+logs/
 
 # --- Bases de données (DuckDB) ---
 # On ignore les fichiers de base de données locaux

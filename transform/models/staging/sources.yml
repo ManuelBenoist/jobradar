@@ -1,0 +1,23 @@
+version: 2
+
+sources:
+  - name: jobradar_raw
+    description: "Données brutes de la zone Landing (JSON structurés)"
+    database: jobradar
+    schema: main
+    tables:
+      - name: raw_adzuna
+        description: "Offres extraites via l'API Adzuna"
+        columns:
+          - name: job_data
+            description: "Payload JSON brut (Type: STRUCT)"
+            tests:
+              - not_null
+
+      - name: raw_france_travail
+        description: "Offres extraites via l'API France Travail"
+        columns:
+          - name: job_data
+            description: "Payload JSON brut (Type: STRUCT)"
+            tests:
+              - not_null
