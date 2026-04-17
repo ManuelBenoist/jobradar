@@ -33,6 +33,17 @@ Organisation en architecture médaillon :
 * **Dashboard :** Interface web filtrable (Technos, Score, Date) hébergée sur GitHub Pages.
 * **Alertes :** Lambda + AWS SES envoyant un récapitulatif quotidien des offres avec un score de matching ≥ 70.
 
+### 💰 Cloud Optimization (FinOps)
+Le projet est conçu pour minimiser les coûts opérationnels sur AWS :
+
+Stockage Columnar (Parquet) : Réduit la taille des données stockées de ~80% par rapport au JSON et accélère les requêtes Athena.
+
+Partitionnement : Les données sont partitionnées par date, ce qui permet à Athena de ne scanner que les fichiers nécessaires, réduisant le coût par requête.
+
+Compute Serverless : Utilisation exclusive d'AWS Lambda et Athena (pay-as-you-go). Pas de serveurs allumés 24/7.
+
+Lifecycle Policies S3 : Archivage automatique des fichiers raw vers Glacier après 30 jours (via Terraform).
+
 ## 🛠️ Stack Technologique
 | Couche | Technologies |
 | :--- | :--- |
