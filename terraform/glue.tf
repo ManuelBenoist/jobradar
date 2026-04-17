@@ -50,3 +50,23 @@ resource "aws_glue_catalog_table" "processed_jobs" {
     type = "string"
   }
 }
+
+# Sécurisation FinOps : on limite le nombre de requêtes simultanées et la quantité de données scannées
+resource "aws_athena_workgroup" "jobradar_workgroup" {
+  name = "jobradar_workgroup"
+
+  configuration {
+    enforce_workgroup_configuration    = true
+    publish_cloudwatch_metrics_enabled = true
+
+    result_configuration {
+      output_location = "s3://${aws_s3_bucket.athena_results.bucket}/"
+    }
+
+    # Limite de scan par requête : 100 Mo (0.1 Go)
+    # Si une requête tente de scanner plus, elle est coupée net.
+    bytes_scanned_cutoff_per_query = 104857600 
+  }
+
+  force_destroy = true
+}
