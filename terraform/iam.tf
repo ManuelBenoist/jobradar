@@ -44,3 +44,42 @@ resource "aws_iam_role_policy_attachment" "lambda_logs" {
   role       = aws_iam_role.lambda_ingestion_role.name
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
 }
+
+# "Policy" pour Athena 
+resource "aws_iam_policy" "athena_query_policy" {
+  name        = "jobradar-athena-query-policy"
+  description = "Autorise la lecture des données transformées et l'écriture des résultats Athena"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        # Droits sur les buckets S3
+        Effect   = "Allow"
+        Action   = [
+          "s3:GetBucketLocation",
+          "s3:GetObject",
+          "s3:ListBucket",
+          "s3:PutObject" # Nécessaire pour écrire les fichiers de résultats (.csv)
+        ]
+        Resource = [
+          "${aws_s3_bucket.processed.arn}",
+          "${aws_s3_bucket.processed.arn}/*",
+          "${aws_s3_bucket.athena_results.arn}",
+          "${aws_s3_bucket.athena_results.arn}/*"
+        ]
+      },
+      {
+        # Droits sur le catalogue Glue (pour comprendre la structure des tables)
+        Effect   = "Allow"
+        Action   = [
+          "glue:GetDatabase",
+          "glue:GetTable",
+          "glue:GetPartitions",
+          "glue:BatchCreatePartition" # Pour que le MSCK REPAIR puisse ajouter des partitions
+        ]
+        Resource = ["*"] # On peut restreindre à l'ARN de la DB si on veut être ultra-précis
+      }
+    ]
+  })
+}
