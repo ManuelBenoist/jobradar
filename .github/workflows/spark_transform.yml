@@ -1,0 +1,40 @@
+name: JobRadar Spark Silver Transformation
+
+on:
+  schedule:
+    # Se déclenche tous les jours à 08h15 UTC (soit 10h15 à Paris)
+    - cron: '15 8 * * *'
+  workflow_dispatch: # Permet de le lancer manuellement pour tester
+
+jobs:
+  build-and-run:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Set up Java (Required for Spark)
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: '11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyspark==3.4.1 python-dotenv
+
+      - name: Run PySpark Transformation
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          # On définit la région pour le connecteur S3A
+          AWS_REGION: eu-west-3
+        run: |
+          python src/spark/transform.py
