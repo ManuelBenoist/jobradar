@@ -1,0 +1,15 @@
+version: 2
+
+models:
+  - name: stg_silver_jobs
+    description: "Point d'entrée unique des données nettoyées par Spark"
+    columns:
+      - name: job_id
+        description: "Identifiant technique de l'offre (SHA256 ou ID Source)"
+        tests:
+          - unique
+          - not_null
+      - name: ingestion_date
+        description: "Date de traitement de l'offre"
+        tests:
+          - not_null

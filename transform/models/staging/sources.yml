@@ -1,23 +1,17 @@
 version: 2
 
 sources:
-  - name: jobradar_raw
-    description: "Données brutes de la zone Landing (JSON structurés)"
-    database: jobradar
-    schema: main
+  - name: glue_silver
+    description: "Zone Silver - Données nettoyées et partitionnées par Spark (AWS Glue Catalog)"
+    database: awsdatacatalog # Nom standard pour le catalogue Glue dans dbt-athena
+    schema: jobradar_db      
     tables:
-      - name: raw_adzuna
-        description: "Offres extraites via l'API Adzuna"
+      - name: silver_jobs
+        description: "Offres d'emploi dédupliquées et structurées par le pipeline PySpark"
         columns:
-          - name: job_data
-            description: "Payload JSON brut (Type: STRUCT)"
+          - name: job_id
             tests:
+              - unique
               - not_null
-
-      - name: raw_france_travail
-        description: "Offres extraites via l'API France Travail"
-        columns:
-          - name: job_data
-            description: "Payload JSON brut (Type: STRUCT)"
-            tests:
-              - not_null
+          - name: salary_min_numeric
+            description: "Salaire minimum extrait et converti en Integer"

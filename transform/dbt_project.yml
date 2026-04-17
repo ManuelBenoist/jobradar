@@ -33,5 +33,7 @@ models:
   jobradar:
     staging:
       +materialized: view  # Les fichiers de staging sont souvent des vues
-    intermediate:
+    marts:
       +materialized: table # Les couches silver/gold en tables pour la perf
+      +table_type: 'hive' # Spécifique à Athena pour créer des tables classiques
+      +format: 'parquet'  # On reste sur du Parquet pour la performance FinOps

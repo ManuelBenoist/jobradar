@@ -1,6 +1,8 @@
 from pyspark.sql import SparkSession, Window
 from pyspark.sql import functions as F
-
+#import os 
+#from dotenv import load_dotenv
+#load_dotenv()
 # --- CONFIGURATION ---
 RAW_PATH = "s3a://jobradar-raw-manuel-cloud"
 SILVER_PATH = "s3a://jobradar-processed-manuel-cloud/silver_jobs"
@@ -27,6 +29,7 @@ def stage_adzuna(spark):
             F.col("location.display_name").alias("location"),
             F.col("salary_min").cast("string").alias("salary_info"),
             F.col("created").alias("created_at"),
+            F.col("redirect_url").alias("url"),
             F.lit("Adzuna").alias("source_name")
         )
 
@@ -43,6 +46,7 @@ def stage_france_travail(spark):
             F.col("lieuTravail.libelle").alias("location"),
             F.to_json(F.col("salaire")).alias("salary_info"),
             F.col("dateCreation").alias("created_at"),
+            F.col("origineOffre.urlOrigine").alias("url"),
             F.lit("France Travail").alias("source_name")
         )
 
@@ -128,6 +132,7 @@ def run_pipeline():
     
     silver_columns = [
         "job_id", "title", "company_name", "location_clean", "description",
+        "url",
         "created_at", "source_name", "extracted_skills", "salary_min_numeric", 
         "is_junior", "is_senior", "is_red_flag", "is_ethical", "ingestion_date"
     ]
