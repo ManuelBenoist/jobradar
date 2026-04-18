@@ -21,8 +21,9 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install ruff pytest pyathena boto3 fastapi  
-
+          pip install ruff pytest
+          pip install -r requirements.txt
+        
       - name: Run Ruff (Linter)
         run: ruff check .
 
