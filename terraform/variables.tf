@@ -33,3 +33,8 @@ variable "ft_client_secret" {
   type        = string
   sensitive   = true
 }
+
+variable "athena_staging_dir" {
+  description = "Le bucket S3 pour les résultats Athena"
+  type        = string
+}

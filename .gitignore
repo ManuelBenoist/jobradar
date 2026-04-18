@@ -35,6 +35,7 @@ ingestion/data/**/*.json
 # --- Terraform ---
 **/.terraform/
 terraform.tfstate
+terraform.tfvars
 *.tfstate
 *.tfstate.*
 *.tfvars
