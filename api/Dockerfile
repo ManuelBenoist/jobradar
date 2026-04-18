@@ -23,6 +23,11 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
+# On met à jour la liste des paquets et on installe les dernières versions de sécurité
+RUN apt-get update && \
+    apt-get upgrade -y && \
+    rm -rf /var/lib/apt/lists/*
+
 # On copie TOUT l'environnement virtuel (plus fiable que .local)
 COPY --from=builder /opt/venv /opt/venv
 
