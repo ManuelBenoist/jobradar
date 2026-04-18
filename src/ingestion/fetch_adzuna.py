@@ -2,7 +2,6 @@ import json
 import logging
 import os
 import sys
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional
 
@@ -31,7 +30,9 @@ def _require_env_var(name: str) -> str:
     return value
 
 
-def _get_output_path(base_dir: Path, batch_id: str, query_label: str, page: int) -> Path:
+def _get_output_path(
+    base_dir: Path, batch_id: str, query_label: str, page: int
+) -> Path:
     return base_dir / f"adzuna_{batch_id}_{query_label}_page{page}.json"
 
 
@@ -128,11 +129,17 @@ def fetch_adzuna_jobs(
             break
 
         if isinstance(total_count, int) and len(combined_results) >= total_count:
-            logger.debug("Fetched all %s offers according to count, stopping pagination.", total_count)
+            logger.debug(
+                "Fetched all %s offers according to count, stopping pagination.",
+                total_count,
+            )
             break
 
         if len(page_results) == 0:
-            logger.debug("No more results returned at page=%s, stopping pagination.", current_page)
+            logger.debug(
+                "No more results returned at page=%s, stopping pagination.",
+                current_page,
+            )
             break
 
         current_page += 1
@@ -144,7 +151,10 @@ def fetch_adzuna_jobs(
         fetched_pages,
     )
 
-    combined_payload = {"count": total_count if isinstance(total_count, int) else offers_count, "results": combined_results}
+    combined_payload = {
+        "count": total_count if isinstance(total_count, int) else offers_count,
+        "results": combined_results,
+    }
     if fetched_pages > 1:
         combined_payload["pages"] = fetched_pages
 
@@ -154,11 +164,15 @@ def fetch_adzuna_jobs(
 if __name__ == "__main__":
     import argparse
 
-    parser = argparse.ArgumentParser(description="Fetch Adzuna job offers and save raw JSON.")
+    parser = argparse.ArgumentParser(
+        description="Fetch Adzuna job offers and save raw JSON."
+    )
     parser.add_argument("--what", default="Data Engineer", help="Job title or keywords")
     parser.add_argument("--where", default="Nantes", help="Location")
     parser.add_argument("--distance", type=int, default=20, help="Distance in km")
-    parser.add_argument("--page", type=int, default=1, help="Page number to start fetching from")
+    parser.add_argument(
+        "--page", type=int, default=1, help="Page number to start fetching from"
+    )
     parser.add_argument(
         "--results-per-page",
         type=int,

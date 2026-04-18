@@ -1,7 +1,6 @@
 import logging
 import sys
 import time
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import Iterable, Optional
 
@@ -74,7 +73,7 @@ def run_daily_ingestion(
             )
         except EnvironmentError as exc:
             logger.warning("France Travail ingestion skipped for %s: %s", keyword, exc)
-        except Exception as exc:
+        except Exception:
             logger.exception("France Travail ingestion failed for %s", keyword)
 
         time.sleep(throttle_seconds)
@@ -110,7 +109,9 @@ def run_daily_ingestion(
 if __name__ == "__main__":
     import argparse
 
-    parser = argparse.ArgumentParser(description="Run daily raw ingestion for France Travail and Adzuna.")
+    parser = argparse.ArgumentParser(
+        description="Run daily raw ingestion for France Travail and Adzuna."
+    )
     parser.add_argument(
         "--keywords",
         nargs="+",

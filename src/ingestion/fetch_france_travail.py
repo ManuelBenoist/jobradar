@@ -54,7 +54,7 @@ def _get_access_token(force_refresh: bool = False) -> str:
     now = datetime.now(timezone.utc)
     cached_token = _TOKEN_CACHE.get("access_token")
     expires_at = _TOKEN_CACHE.get("expires_at")
-    
+
     if cached_token and expires_at and not force_refresh:
         if now < expires_at - timedelta(seconds=30):
             return cached_token
@@ -72,26 +72,28 @@ def _get_access_token(force_refresh: bool = False) -> str:
         "client_secret": client_secret,
         "scope": "api_offresdemploiv2 o2dsoffre",
     }
-    
+
     headers = {
         "Content-Type": "application/x-www-form-urlencoded",
-        "Accept": "application/json"
+        "Accept": "application/json",
     }
 
     response = requests.post(
         token_url,
         data=payload,  # On envoie tout ici
         headers=headers,
-        timeout=30
+        timeout=30,
     )
 
     if response.status_code != 200:
-        logger.error("OAuth2 Error Details: %s", response.text) # Pour voir le vrai message d'erreur du serveur
+        logger.error(
+            "OAuth2 Error Details: %s", response.text
+        )  # Pour voir le vrai message d'erreur du serveur
         response.raise_for_status()
 
     token_payload = response.json()
     access_token = token_payload.get("access_token")
-    
+
     expires_in = int(token_payload.get("expires_in", 3600))
     _TOKEN_CACHE["access_token"] = access_token
     _TOKEN_CACHE["expires_at"] = now + timedelta(seconds=expires_in)
@@ -100,7 +102,9 @@ def _get_access_token(force_refresh: bool = False) -> str:
     return access_token
 
 
-def _get_output_path(base_dir: Path, batch_id: str, query_label: str, page: int) -> Path:
+def _get_output_path(
+    base_dir: Path, batch_id: str, query_label: str, page: int
+) -> Path:
     filename = (
         f"france_travail_{batch_id}_{query_label}.json"
         if page == 1
@@ -115,7 +119,9 @@ def _get_range(start: int, per_page: int) -> str:
 
 def _validate_per_page(per_page: int) -> int:
     if per_page < 1 or per_page > 150:
-        raise ValueError("per_page must be between 1 and 150 for France Travail API range requests.")
+        raise ValueError(
+            "per_page must be between 1 and 150 for France Travail API range requests."
+        )
     return per_page
 
 
@@ -182,7 +188,9 @@ def fetch_france_travail_offers(
         )
 
         if response.status_code == 429:
-            raise RuntimeError("France Travail API rate limited (HTTP 429). Please retry later.")
+            raise RuntimeError(
+                "France Travail API rate limited (HTTP 429). Please retry later."
+            )
 
         if response.status_code in {401, 403}:
             logger.warning(
@@ -225,7 +233,9 @@ def fetch_france_travail_offers(
             len(page_results),
         )
         logger.debug("Saved raw France Travail payload to %s", output_path)
-        logger.debug("Range %s returned %s offer(s)", params["range"], len(page_results))
+        logger.debug(
+            "Range %s returned %s offer(s)", params["range"], len(page_results)
+        )
 
         if not fetch_all:
             break
@@ -242,7 +252,10 @@ def fetch_france_travail_offers(
             break
 
         if len(page_results) == 0:
-            logger.debug("No more results returned at range=%s, stopping pagination.", params["range"])
+            logger.debug(
+                "No more results returned at range=%s, stopping pagination.",
+                params["range"],
+            )
             break
 
         start += per_page
@@ -267,18 +280,40 @@ def fetch_france_travail_offers(
 if __name__ == "__main__":
     import argparse
 
-    parser = argparse.ArgumentParser(description="Fetch France Travail job offers and save raw JSON.")
-    parser.add_argument("--filter-departement", type=int, default=44, help="Département de recherche")
+    parser = argparse.ArgumentParser(
+        description="Fetch France Travail job offers and save raw JSON."
+    )
+    parser.add_argument(
+        "--filter-departement", type=int, default=44, help="Département de recherche"
+    )
     parser.add_argument(
         "--keywords",
         default="data",
         help="Mots clés métiers pour filtrer les offres",
     )
-    parser.add_argument("--page", type=int, default=1, help="Page de départ pour la pagination range")
-    parser.add_argument("--per-page", type=int, default=50, help="Nombre d'offres par plage (max 150)")
-    parser.add_argument("--fetch-all", action="store_true", help="Récupérer toutes les pages disponibles")
-    parser.add_argument("--max-pages", type=int, default=None, help="Nombre maximal de pages à récupérer")
-    parser.add_argument("--batch-id", type=str, default=None, help="Identifiant de batch pour nommer les fichiers bruts")
+    parser.add_argument(
+        "--page", type=int, default=1, help="Page de départ pour la pagination range"
+    )
+    parser.add_argument(
+        "--per-page", type=int, default=50, help="Nombre d'offres par plage (max 150)"
+    )
+    parser.add_argument(
+        "--fetch-all",
+        action="store_true",
+        help="Récupérer toutes les pages disponibles",
+    )
+    parser.add_argument(
+        "--max-pages",
+        type=int,
+        default=None,
+        help="Nombre maximal de pages à récupérer",
+    )
+    parser.add_argument(
+        "--batch-id",
+        type=str,
+        default=None,
+        help="Identifiant de batch pour nommer les fichiers bruts",
+    )
     args = parser.parse_args()
 
     try:

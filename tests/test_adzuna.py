@@ -2,7 +2,6 @@ import json
 import sys
 from pathlib import Path
 
-import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
@@ -34,7 +33,10 @@ def test_fetch_adzuna_jobs_saves_raw_payload(tmp_path, monkeypatch):
         assert params["distance"] == 20
         return FakeResponse(
             url=endpoint,
-            payload={"count": 2, "results": [{"title": "Data Engineer"}, {"title": "DevOps"}]},
+            payload={
+                "count": 2,
+                "results": [{"title": "Data Engineer"}, {"title": "DevOps"}],
+            },
         )
 
     monkeypatch.setattr("ingestion.fetch_adzuna.requests.get", fake_get)

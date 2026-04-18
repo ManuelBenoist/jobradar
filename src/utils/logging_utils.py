@@ -17,10 +17,14 @@ class ColoredFormatter(logging.Formatter):
     }
 
     def __init__(self) -> None:
-        super().__init__(fmt="%(asctime)s %(levelname)s %(message)s", datefmt="%Y-%m-%d %H:%M:%S")
+        super().__init__(
+            fmt="%(asctime)s %(levelname)s %(message)s", datefmt="%Y-%m-%d %H:%M:%S"
+        )
 
     def format(self, record: logging.LogRecord) -> str:
-        color, emoji = self.LEVEL_CONFIG.get(record.levelno, self.LEVEL_CONFIG[logging.INFO])
+        color, emoji = self.LEVEL_CONFIG.get(
+            record.levelno, self.LEVEL_CONFIG[logging.INFO]
+        )
         original_levelname = record.levelname
         record.levelname = f"{emoji} {record.levelname}"
         formatted_message = super().format(record)

@@ -13,6 +13,7 @@ SOURCE_RESULT_FIELD = {
     "france_travail": "resultats",
 }
 
+
 def load_source_to_duckdb(source_name: str, file_pattern: str):
     """
     Charge les fichiers JSON bruts d'une source dans sa propre table DuckDB (raw_source).
@@ -21,10 +22,14 @@ def load_source_to_duckdb(source_name: str, file_pattern: str):
     files = list(raw_dir.glob(file_pattern))
 
     if not files:
-        logger.warning("⚠️ Aucun fichier trouvé pour %s (%s).", source_name, file_pattern)
+        logger.warning(
+            "⚠️ Aucun fichier trouvé pour %s (%s).", source_name, file_pattern
+        )
         return
 
-    logger.info("🔄 Chargement de %s fichiers pour %s dans DuckDB...", len(files), source_name)
+    logger.info(
+        "🔄 Chargement de %s fichiers pour %s dans DuckDB...", len(files), source_name
+    )
 
     source_field = SOURCE_RESULT_FIELD.get(source_name, "results")
     table_name = f"raw_{source_name}"
@@ -33,7 +38,7 @@ def load_source_to_duckdb(source_name: str, file_pattern: str):
     try:
         # Idempotence : on supprime la table si elle existe pour la recréer proprement
         con.execute(f"DROP TABLE IF EXISTS {table_name}")
-        
+
         # Création de la table dédiée à la source
         query = f"""
             CREATE TABLE {table_name} AS 
@@ -50,13 +55,15 @@ def load_source_to_duckdb(source_name: str, file_pattern: str):
     finally:
         con.close()
 
+
 def main():
     logger.info("🚀 Début de la synchronisation vers DuckDB (Landing Zone)")
-    
+
     load_source_to_duckdb("adzuna", "adzuna_*.json")
     load_source_to_duckdb("france_travail", "france_travail_*.json")
-    
+
     logger.info("🏁 Synchronisation terminée.")
+
 
 if __name__ == "__main__":
     main()

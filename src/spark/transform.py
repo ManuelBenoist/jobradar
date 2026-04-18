@@ -1,26 +1,36 @@
 from pyspark.sql import SparkSession, Window
 from pyspark.sql import functions as F
-#import os 
-#from dotenv import load_dotenv
-#load_dotenv()
+
+# import os
+# from dotenv import load_dotenv
+# load_dotenv()
 # --- CONFIGURATION ---
 RAW_PATH = "s3a://jobradar-raw-manuel-cloud"
 SILVER_PATH = "s3a://jobradar-processed-manuel-cloud/silver_jobs"
 
+
 def create_spark_session():
-    return SparkSession.builder \
-        .appName("JobRadar_Silver_Layer") \
-        .config("spark.jars.packages", "org.apache.hadoop:hadoop-aws:3.3.4,com.amazonaws:aws-java-sdk-bundle:1.12.262") \
-        .config("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem") \
-        .config("spark.hadoop.fs.s3a.endpoint", "s3.eu-west-3.amazonaws.com") \
+    return (
+        SparkSession.builder.appName("JobRadar_Silver_Layer")
+        .config(
+            "spark.jars.packages",
+            "org.apache.hadoop:hadoop-aws:3.3.4,com.amazonaws:aws-java-sdk-bundle:1.12.262",
+        )
+        .config("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem")
+        .config("spark.hadoop.fs.s3a.endpoint", "s3.eu-west-3.amazonaws.com")
         .getOrCreate()
+    )
+
 
 # --- ETAPE 1 : BRONZE / STAGING ---
 def stage_adzuna(spark):
     print("📥 Extraction Adzuna...")
-    return spark.read.option("multiLine", "true").option("recursiveFileLookup", "true") \
-        .json(f"{RAW_PATH}/adzuna/") \
-        .select(F.explode("results").alias("job")).select("job.*") \
+    return (
+        spark.read.option("multiLine", "true")
+        .option("recursiveFileLookup", "true")
+        .json(f"{RAW_PATH}/adzuna/")
+        .select(F.explode("results").alias("job"))
+        .select("job.*")
         .select(
             F.col("id").cast("string").alias("job_id"),
             F.col("title"),
@@ -30,132 +40,211 @@ def stage_adzuna(spark):
             F.col("salary_min").cast("string").alias("salary_info"),
             F.col("created").alias("created_at"),
             F.col("redirect_url").alias("url"),
-            F.lit("Adzuna").alias("source_name")
+            F.lit("Adzuna").alias("source_name"),
         )
+    )
+
 
 def stage_france_travail(spark):
     print("📥 Extraction France Travail...")
-    return spark.read.option("multiLine", "true").option("recursiveFileLookup", "true") \
-        .json(f"{RAW_PATH}/france_travail/") \
-        .select(F.explode("results").alias("job")).select("job.*") \
+    return (
+        spark.read.option("multiLine", "true")
+        .option("recursiveFileLookup", "true")
+        .json(f"{RAW_PATH}/france_travail/")
+        .select(F.explode("results").alias("job"))
+        .select("job.*")
         .select(
             F.col("id").cast("string").alias("job_id"),
             F.col("intitule").alias("title"),
-            F.coalesce(F.col("entreprise.nom"), F.lit("Non renseigné")).alias("company_name"),
+            F.coalesce(F.col("entreprise.nom"), F.lit("Non renseigné")).alias(
+                "company_name"
+            ),
             F.col("description"),
             F.col("lieuTravail.libelle").alias("location"),
             F.to_json(F.col("salaire")).alias("salary_info"),
             F.col("dateCreation").alias("created_at"),
             F.col("origineOffre.urlOrigine").alias("url"),
-            F.lit("France Travail").alias("source_name")
+            F.lit("France Travail").alias("source_name"),
         )
+    )
 
 
 def apply_silver_logic(df):
     print("🧹 Nettoyage Silver Expert & Feature Engineering...")
 
     # 1. Nettoyage HTML + Suppression des caractères invisibles (\xa0, retours à la ligne, etc.)
-    df = df.withColumn("description_clean", F.regexp_replace(F.col("description"), "<[^>]*>", " "))
-    df = df.withColumn("description_clean", F.regexp_replace(F.col("description_clean"), r"[\n\r\t\xa0]", " "))
-    
+    df = df.withColumn(
+        "description_clean", F.regexp_replace(F.col("description"), "<[^>]*>", " ")
+    )
+    df = df.withColumn(
+        "description_clean",
+        F.regexp_replace(F.col("description_clean"), r"[\n\r\t\xa0]", " "),
+    )
+
     # 2. Création des colonnes de recherche
-    df = df.withColumn("search_text", F.lower(F.concat_ws(" ", F.col("title"), F.col("description_clean"))))
-    df = df.withColumn("location_clean", F.trim(F.regexp_replace(F.col("location"), r"\(?[0-9]{2,5}\)?|-", "")))
+    df = df.withColumn(
+        "search_text",
+        F.lower(F.concat_ws(" ", F.col("title"), F.col("description_clean"))),
+    )
+    df = df.withColumn(
+        "location_clean",
+        F.trim(F.regexp_replace(F.col("location"), r"\(?[0-9]{2,5}\)?|-", "")),
+    )
 
     # 3. EXTRACTION DES SKILLS
     tech_map = {
-        "python": "python", 
-        "sql": "sql", 
-        "dbt": "dbt", 
-        "aws": "aws", 
-        "spark": "spark", 
-        "docker": "docker", 
-        "kubernetes": "kubernetes|k8s", 
-        "terraform": "terraform"
+        "python": "python",
+        "sql": "sql",
+        "dbt": "dbt",
+        "aws": "aws",
+        "spark": "spark",
+        "docker": "docker",
+        "kubernetes": "kubernetes|k8s",
+        "terraform": "terraform",
     }
-    
+
     tag_exprs = [
-        F.when(F.col("search_text").rlike(regex), F.lit(tech)).otherwise(F.lit(None)) 
+        F.when(F.col("search_text").rlike(regex), F.lit(tech)).otherwise(F.lit(None))
         for tech, regex in tech_map.items()
     ]
-    
+
     # On crée le tableau avec les nulls
     df = df.withColumn("raw_skills_array", F.array(*tag_exprs))
-    
+
     # On filtre les nulls, puis on déduplique
-    df = df.withColumn("extracted_skills", 
-                       F.array_distinct(F.filter(F.col("raw_skills_array"), lambda x: x.isNotNull())))
-    
+    df = df.withColumn(
+        "extracted_skills",
+        F.array_distinct(F.filter(F.col("raw_skills_array"), lambda x: x.isNotNull())),
+    )
+
     # On nettoie la colonne temporaire
     df = df.drop("raw_skills_array")
 
     # 4. EXTRACTION DU SALAIRE
     salary_regex = r"(\d{2}\s?\d{3}|\d{2}k|\d{5})"
-    df = df.withColumn("salary_search", F.concat_ws(" | ", F.col("salary_info"), F.col("description_clean")))
-    df = df.withColumn("salary_raw", F.regexp_extract(F.col("salary_search"), salary_regex, 1))
-    df = df.withColumn("salary_tmp", F.regexp_replace(F.col("salary_raw"), r"\s", ""))
-    
-    df = df.withColumn("salary_min_numeric", 
-        F.when(F.col("salary_tmp").contains("k"), 
-               F.regexp_replace(F.col("salary_tmp"), "k", "").cast("int") * 1000)
-         .otherwise(F.col("salary_tmp").cast("int"))
+    df = df.withColumn(
+        "salary_search",
+        F.concat_ws(" | ", F.col("salary_info"), F.col("description_clean")),
     )
-    
-    df = df.withColumn("salary_min_numeric", 
-        F.when((F.col("salary_min_numeric") >= 25000) & (F.col("salary_min_numeric") <= 180000), F.col("salary_min_numeric"))
-         .otherwise(None)
+    df = df.withColumn(
+        "salary_raw", F.regexp_extract(F.col("salary_search"), salary_regex, 1)
+    )
+    df = df.withColumn("salary_tmp", F.regexp_replace(F.col("salary_raw"), r"\s", ""))
+
+    df = df.withColumn(
+        "salary_min_numeric",
+        F.when(
+            F.col("salary_tmp").contains("k"),
+            F.regexp_replace(F.col("salary_tmp"), "k", "").cast("int") * 1000,
+        ).otherwise(F.col("salary_tmp").cast("int")),
+    )
+
+    df = df.withColumn(
+        "salary_min_numeric",
+        F.when(
+            (F.col("salary_min_numeric") >= 25000)
+            & (F.col("salary_min_numeric") <= 180000),
+            F.col("salary_min_numeric"),
+        ).otherwise(None),
     )
 
     # 5. FLAGS (Junior, Senior, etc.)
-    df = df.withColumn("is_junior", F.col("search_text").rlike(r"junior|débutant|jeune diplômé"))
-    df = df.withColumn("is_senior", F.col("search_text").rlike(r"senior|expert|lead|confirmé"))
-    df = df.withColumn("is_red_flag", F.col("search_text").rlike(r"alternance|stage|support|technicien|helpdesk"))
-    
+    df = df.withColumn(
+        "is_junior", F.col("search_text").rlike(r"junior|débutant|jeune diplômé")
+    )
+    df = df.withColumn(
+        "is_senior", F.col("search_text").rlike(r"senior|expert|lead|confirmé")
+    )
+    df = df.withColumn(
+        "is_red_flag",
+        F.col("search_text").rlike(r"alternance|stage|support|technicien|helpdesk"),
+    )
+
     ethical_regex = r"impact|green|environnement|transition|coopérative|scic|scop|ess"
-    df = df.withColumn("is_ethical", F.col("search_text").rlike(ethical_regex) | F.lower(F.col("company_name")).rlike(ethical_regex))
+    df = df.withColumn(
+        "is_ethical",
+        F.col("search_text").rlike(ethical_regex)
+        | F.lower(F.col("company_name")).rlike(ethical_regex),
+    )
 
     # 6. DÉDUPLICATION (Window Function)
     # On prépare le hash d'ID unique pour la partition
-    df = df.withColumn("dedup_id", F.sha2(F.concat_ws("||", F.lower(F.col("title")), F.lower(F.col("company_name")), F.col("location_clean")), 256))
-    
+    df = df.withColumn(
+        "dedup_id",
+        F.sha2(
+            F.concat_ws(
+                "||",
+                F.lower(F.col("title")),
+                F.lower(F.col("company_name")),
+                F.col("location_clean"),
+            ),
+            256,
+        ),
+    )
+
     window_spec = Window.partitionBy("dedup_id").orderBy(F.col("created_at").desc())
 
     # 7. NETTOYAGE FINAL ET RETOUR
-    return df.withColumn("rn", F.row_number().over(window_spec)) \
-             .filter(F.col("rn") == 1) \
-             .withColumn("ingestion_date", F.current_date()) \
-             .drop("rn", "search_text", "salary_search", "salary_raw", "salary_tmp", "description_clean", "salary_clean", "dedup_id")
+    return (
+        df.withColumn("rn", F.row_number().over(window_spec))
+        .filter(F.col("rn") == 1)
+        .withColumn("ingestion_date", F.current_date())
+        .drop(
+            "rn",
+            "search_text",
+            "salary_search",
+            "salary_raw",
+            "salary_tmp",
+            "description_clean",
+            "salary_clean",
+            "dedup_id",
+        )
+    )
+
 
 # --- ETAPE 3 : PIPELINE ---
 def run_pipeline():
     spark = create_spark_session()
-    
+
     silver_columns = [
-        "job_id", "title", "company_name", "location_clean", "description",
+        "job_id",
+        "title",
+        "company_name",
+        "location_clean",
+        "description",
         "url",
-        "created_at", "source_name", "extracted_skills", "salary_min_numeric", 
-        "is_junior", "is_senior", "is_red_flag", "is_ethical", "ingestion_date"
+        "created_at",
+        "source_name",
+        "extracted_skills",
+        "salary_min_numeric",
+        "is_junior",
+        "is_senior",
+        "is_red_flag",
+        "is_ethical",
+        "ingestion_date",
     ]
-    
+
     try:
         df_adz = stage_adzuna(spark)
         df_ft = stage_france_travail(spark)
-                
-        print(f"✅ Staging terminé : {df_adz.count()} Adzuna, {df_ft.count()} France Travail.")
-        
+
+        print(
+            f"✅ Staging terminé : {df_adz.count()} Adzuna, {df_ft.count()} France Travail."
+        )
+
         df_silver = apply_silver_logic(df_adz.unionByName(df_ft))
-        
+
         print(f"🚀 Écriture de {df_silver.count()} offres uniques vers S3...")
-        
-        df_silver.select(silver_columns).write \
-            .mode("overwrite") \
-            .partitionBy("ingestion_date") \
-            .parquet(SILVER_PATH)
-            
+
+        df_silver.select(silver_columns).write.mode("overwrite").partitionBy(
+            "ingestion_date"
+        ).parquet(SILVER_PATH)
+
         print("✅ Silver Transformation terminée avec succès !")
-        
+
     except Exception as e:
         print(f"❌ Erreur : {e}")
+
 
 if __name__ == "__main__":
     run_pipeline()
