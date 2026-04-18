@@ -7,6 +7,7 @@ sources:
     schema: jobradar_db      
     tables:
       - name: silver_jobs
+        external_location: "s3://jobradar-processed-manuel-cloud/silver_jobs/"
         description: "Offres d'emploi dédupliquées et structurées par le pipeline PySpark"
         columns:
           - name: job_id

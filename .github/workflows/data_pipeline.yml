@@ -5,6 +5,9 @@ on:
     # 08:15 UTC = 10:15 Paris
     - cron: '15 8 * * *'
   workflow_dispatch: # Permet de lancer manuellement depuis l'interface GitHub
+  push:
+    branches: 
+      - 14-pipeline-cicd-github-actions
 
 jobs:
   # --- JOB 1 : Transformation Spark (Silver Layer) ---
@@ -55,7 +58,7 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           # Ces variables seront lues par ton profiles.yml
           DBT_S3_STAGING_DIR: s3://jobradar-athena-results-manuel-cloud/athena-query-results/
-          DBT_S3_DATA_DIR: s3://jobradar-curated-manuel-cloud/
+          DBT_S3_DATA_DIR: s3://jobradar-curated-manuel-cloud/gold/
         run: |
           cd transform
           dbt run --target dev --profiles-dir .
