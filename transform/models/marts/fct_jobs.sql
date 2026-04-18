@@ -1,6 +1,7 @@
 {{ config(
     materialized='table',
-    description='Calcul du score de matching final basé sur les colonnes enrichies par Spark'
+    description='Calcul du score de matching final basé sur les colonnes enrichies par Spark',
+    external_location="s3://jobradar-curated-manuel-cloud/gold/fct_jobs/"
 ) }}
 
 WITH jobs AS (
