@@ -3,8 +3,8 @@ name: API CD (Build & Push to ECR)
 on:
   push:
     branches: [ main ] # On ne déploie l'image que quand c'est validé sur main
-    paths:
-      - 'api/**'     # On ne lance le build que si le code de l'API change
+    #paths:
+    #  - 'api/**'     # On ne lance le build que si le code de l'API change
   workflow_dispatch: # Permet de déclencher manuellement le workflow depuis l'interface GitHub
 
 jobs:
@@ -36,4 +36,3 @@ jobs:
           docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:latest
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
-          
