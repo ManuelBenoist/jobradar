@@ -38,7 +38,8 @@ Le projet est optimisé pour un coût réel de **0€** pour l'utilisateur :
 ```bash
 terraform destroy
 ```
-Sinon, il faudra passer à une solution 0 frais comme en permettant au dashboard d'aller directement piocher dans la couche gold S3.
+Une alternative 'Full-Free' consisterait à supprimer l'API pour que Streamlit lise directement les fichiers Parquet via le connecteur Athena, éliminant ainsi les frais fixes d'App Runner.
+
 * **Lifecycle Policies S3** : Nettoyage automatique des fichiers temporaires et archivage vers Glacier.
 
 ## 🛠️ Stack Technologique
