@@ -2,7 +2,7 @@ name: JobRadar CI (Quality Check)
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [ main, develop, 14-pipeline-cicd-github-actions ]
   pull_request:
     branches: [ main ]
 
