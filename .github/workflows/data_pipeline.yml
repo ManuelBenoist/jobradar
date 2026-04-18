@@ -1,0 +1,61 @@
+name: JobRadar Data Pipeline (Silver & Gold)
+
+on:
+  schedule:
+    # 08:15 UTC = 10:15 Paris
+    - cron: '15 8 * * *'
+  workflow_dispatch: # Permet de lancer manuellement depuis l'interface GitHub
+
+jobs:
+  # --- JOB 1 : Transformation Spark (Silver Layer) ---
+  spark-transform:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python & Java
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Set up Java
+        uses: actions/setup-java@v3
+        with:
+          distribution: 'temurin'
+          java-version: '11'
+
+      - name: Run PySpark Transformation
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION: eu-west-3
+        run: |
+          pip install pyspark==3.4.1 python-dotenv
+          python src/spark/transform.py
+
+  # --- JOB 2 : Transformation dbt (Gold Layer) ---
+  dbt-scoring:
+    needs: spark-transform # Attend que Spark finisse avec succès
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dbt
+        run: pip install dbt-athena-community
+
+      - name: dbt Run
+        env:
+          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          # Ces variables seront lues par ton profiles.yml
+          DBT_S3_STAGING_DIR: s3://jobradar-athena-results-manuel-cloud/athena-query-results/
+          DBT_S3_DATA_DIR: s3://jobradar-curated-manuel-cloud/
+        run: |
+          cd transform
+          dbt run --target dev --profiles-dir .

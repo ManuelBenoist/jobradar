@@ -1,0 +1,30 @@
+name: JobRadar CI (Quality Check)
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install ruff pytest pyathena boto3 fastapi  
+
+      - name: Run Ruff (Linter)
+        run: ruff check .
+
+      - name: Run Pytest
+        run: pytest
