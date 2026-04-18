@@ -57,6 +57,10 @@ resource "aws_glue_catalog_table" "processed_jobs" {
       type = "string"
     }
     columns {
+      name = "url"
+      type = "string"
+    }
+    columns {
       name = "extracted_skills"
       type = "array<string>" # Type complexe pour Athena
     }
@@ -92,7 +96,7 @@ resource "aws_athena_workgroup" "jobradar_workgroup" {
   name = "jobradar_workgroup"
 
   configuration {
-    enforce_workgroup_configuration    = true
+    enforce_workgroup_configuration    = false
     publish_cloudwatch_metrics_enabled = true
 
     result_configuration {

@@ -17,6 +17,15 @@ resource "aws_s3_bucket" "athena_results" {
   force_destroy = true
 }
 
+resource "aws_ecr_repository" "jobradar_api" {
+  name                 = "jobradar-api"
+  image_tag_mutability = "MUTABLE"
+
+  image_scanning_configuration {
+    scan_on_push = true # AWS vérifie s'il y a des failles de sécurité dans le code
+  }
+}
+
 # Règle de rétention de 7 jours pour ne pas payer pour rien (FinOps)
 resource "aws_s3_bucket_lifecycle_configuration" "athena_results_lifecycle" {
   bucket = aws_s3_bucket.athena_results.id
