@@ -5,6 +5,7 @@ on:
     branches: [ main ] # On ne déploie l'image que quand c'est validé sur main
     paths:
       - 'api/**'     # On ne lance le build que si le code de l'API change
+  workflow_dispatch: # Permet de déclencher manuellement le workflow depuis l'interface GitHub
 
 jobs:
   build-and-push:
