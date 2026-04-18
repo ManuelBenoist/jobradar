@@ -44,6 +44,14 @@ Compute Serverless : Utilisation exclusive d'AWS Lambda et Athena (pay-as-you-go
 
 Lifecycle Policies S3 : Archivage automatique des fichiers raw vers Glacier après 30 jours (via Terraform).
 
+API via AWS Runner : peut engendrer des coûts donc il faut surveiller le compte AWS, ECR. Il serait possible de passer outre en lisant directement les tables gold pour agrémenter les dashboards. 
+
+Si le projet n'est pas utilisé pour un temps : 
+```bash
+terraform destroy
+```
+Sinon, surveiller et adapter. 
+
 ## 🛠️ Stack Technologique
 | Couche | Technologies |
 | :--- | :--- |
