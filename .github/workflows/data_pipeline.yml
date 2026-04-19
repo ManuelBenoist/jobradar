@@ -2,8 +2,8 @@ name: JobRadar Data Pipeline (Silver & Gold)
 
 on:
   schedule:
-    # 08:15 UTC = 10:15 Paris
-    - cron: '15 8 * * *'
+    # 05:15 UTC = 07:15 Paris
+    - cron: '15 5 * * *'
   workflow_dispatch: # Permet de lancer manuellement depuis l'interface GitHub
 
 jobs:

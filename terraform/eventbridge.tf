@@ -13,8 +13,8 @@ locals {
 resource "aws_cloudwatch_event_rule" "daily_keyword" {
   for_each            = local.job_queries
   name                = "jobradar-daily-${each.key}"
-  description         = "Declenche l'ingestion pour ${each.value} à 8h00 UTC"
-  schedule_expression = "cron(0 8 * * ? *)"
+  description         = "Declenche l'ingestion pour ${each.value} à 5h00 UTC (7h00 Paris)"
+  schedule_expression = "cron(0 5 * * ? *)"
 }
 
 # 2. Cibles Adzuna : on les lie à leur règle respective
