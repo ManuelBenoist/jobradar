@@ -1,3 +1,4 @@
+import boto3
 from pyspark.sql import SparkSession, Window
 from pyspark.sql import functions as F
 
@@ -240,6 +241,15 @@ def run_pipeline():
             "ingestion_date"
         ).parquet(SILVER_PATH)
 
+        print("🔧 Mise à jour du catalogue Athena (MSCK REPAIR)...")
+        athena = boto3.client('athena', region_name='eu-west-3')
+        
+        # force Athena à scanner S3 pour trouver les nouvelles partitions
+        athena.start_query_execution(
+            QueryString="MSCK REPAIR TABLE jobradar_db.silver_jobs",
+            QueryExecutionContext={'Database': 'jobradar_db'},
+            ResultConfiguration={'OutputLocation': 's3://jobradar-athena-results-manuel-cloud/athena_temp/'}
+        )
         print("✅ Silver Transformation terminée avec succès !")
 
     except Exception as e:
