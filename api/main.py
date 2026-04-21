@@ -1,15 +1,26 @@
 import os
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware # Pour le dashboard
 from pyathena import connect
 from pyathena.cursor import DictCursor
 from dotenv import load_dotenv
+from mangum import Mangum
 
 load_dotenv()
 
 app = FastAPI(
     title="JobRadar API",
-    description="API pour interagir avec les données de JobRadar via AWS Athena",
-    version="1.0.0",
+    description="API pour interagir avec les données de JobRadar via AWS Athena (Serverless Edition)",
+    version="1.1.0",
+)
+
+# --- CONFIGURATION CORS (Indispensable pour Streamlit) ---
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"], # On autorisera tout le monde au début pour faciliter les tests
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 # Configuration Athena
@@ -17,11 +28,10 @@ REGION = os.getenv("AWS_REGION", "eu-west-3")
 DB = os.getenv("ATHENA_DATABASE", "jobradar_db")
 S3_STAGING = os.getenv("ATHENA_S3_STAGING_DIR")
 
-# --- 1. Route d'Accueil (pour éviter le Not Found) ---
 @app.get("/")
 def read_root():
     return {
-        "message": "Bienvenue sur l'API JobRadar",
+        "message": "Bienvenue sur l'API JobRadar (Running on AWS Lambda)",
         "endpoints": {
             "health": "/health",
             "jobs": "/jobs",
@@ -29,14 +39,12 @@ def read_root():
         }
     }
 
-# --- 2. Route de Santé ---
 @app.get("/health")
 def health_check():
-    return {"status": "healthy", "service": "jobradar-api"}
+    return {"status": "healthy", "service": "jobradar-api-serverless"}
 
-# --- 3. Route Principale : Récupération des jobs ---
 @app.get("/jobs")
-def get_jobs(limit: int = 10): # Ajout d'une limite par défaut
+def get_jobs(limit: int = 10):
     if not S3_STAGING:
         raise HTTPException(status_code=500, detail="S3 Staging Dir non configuré")
 
@@ -49,7 +57,6 @@ def get_jobs(limit: int = 10): # Ajout d'une limite par défaut
         )
         cursor = conn.cursor()
         
-        # On utilise une F-string pour la limite 
         query = f"SELECT * FROM api_jobs_ranking LIMIT {limit}"
         cursor.execute(query)
         results = cursor.fetchall()
@@ -63,3 +70,6 @@ def get_jobs(limit: int = 10): # Ajout d'une limite par défaut
     except Exception as e:
         print(f"❌ Erreur Athena : {e}")
         raise HTTPException(status_code=500, detail=f"Erreur lors de la requête Athena : {str(e)}")
+
+# --- 2. LE HANDLER (Le pont entre Lambda et FastAPI) ---
+handler = Mangum(app)
