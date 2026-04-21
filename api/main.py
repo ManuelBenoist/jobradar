@@ -1,5 +1,6 @@
 import os
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware 
 from pyathena import connect
 from pyathena.cursor import DictCursor
 from dotenv import load_dotenv
@@ -16,6 +17,15 @@ app = FastAPI(
 REGION = os.getenv("AWS_REGION", "eu-west-3")
 DB = os.getenv("ATHENA_DATABASE", "jobradar_db")
 S3_STAGING = os.getenv("ATHENA_S3_STAGING_DIR")
+
+# --- CONFIGURATION CORS ---
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"], # Permettre toutes les origines (pour le moment, à restreindre quand le dashboard sera en ligne)
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # --- 1. Route d'Accueil (pour éviter le Not Found) ---
 @app.get("/")
