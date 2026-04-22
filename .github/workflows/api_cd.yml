@@ -2,10 +2,10 @@ name: API CD (Build & Push to ECR)
 
 on:
   push:
-    branches: [ main ] # On ne déploie l'image que quand c'est validé sur main
+    branches: [ main ]
     paths:
-      - 'api/**'     # On ne lance le build que si le code de l'API change
-  workflow_dispatch: # Permet de déclencher manuellement le workflow depuis l'interface GitHub
+      - 'api/**'
+  workflow_dispatch:
 
 jobs:
   build-and-push:
@@ -29,11 +29,19 @@ jobs:
         env:
           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
           ECR_REPOSITORY: jobradar-api
-          IMAGE_TAG: ${{ github.sha }} # Utilise l'ID du commit comme tag
+          IMAGE_TAG: ${{ github.sha }}
         run: |
           cd api
-          docker build -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+
+          docker build --platform linux/amd64 --provenance=false -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
           docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:latest
+          
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
-          
+
+      - name: Update Lambda Function Code
+        run: |
+          aws lambda update-function-code \
+            --function-name jobradar-api-serverless-v2 \
+            --image-uri ${{ steps.login-ecr.outputs.registry }}/jobradar-api:latest \
+            --region eu-west-3

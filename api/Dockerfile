@@ -1,43 +1,17 @@
-# --- STAGE 1 : Builder ---
-FROM python:3.11-slim AS builder
+# 1. Utilisation de l'image de base officielle AWS pour Lambda (Python 3.11)
+FROM public.ecr.aws/lambda/python:3.11
 
-WORKDIR /app
-
+# 2. Variable d'environnement pour que Python ne crée pas de fichiers .pyc
 ENV PYTHONDONTWRITEBYTECODE=1
-ENV PYTHONUNBUFFERED=1
 
-# Installation des outils de build
-RUN apt-get update && apt-get install -y --no-install-recommends gcc python3-dev
+# 3. Copier le fichier des dépendances
+COPY requirements-api.txt ${LAMBDA_TASK_ROOT}
 
-# Création d'un Virtualenv pour isoler les libs
-RUN python -m venv /opt/venv
-ENV PATH="/opt/venv/bin:$PATH"
-
-# Utilisation du nom exact de ton fichier
-COPY requirements-api.txt .
+# 4. Installation des dépendances directement dans l'environnement de la Lambda
 RUN pip install --no-cache-dir -r requirements-api.txt
 
+# 5. Copier le code source de l'API
+COPY . ${LAMBDA_TASK_ROOT}
 
-# --- STAGE 2 : Runtime ---
-FROM python:3.11-slim
-
-WORKDIR /app
-
-# On met à jour la liste des paquets et on installe les dernières versions de sécurité
-RUN apt-get update && \
-    apt-get upgrade -y && \
-    rm -rf /var/lib/apt/lists/*
-
-# On copie TOUT l'environnement virtuel (plus fiable que .local)
-COPY --from=builder /opt/venv /opt/venv
-
-# On force l'utilisation des binaires du venv
-ENV PATH="/opt/venv/bin:$PATH"
-
-# On copie le reste du code (main.py, etc.)
-COPY . .
-
-EXPOSE 8000
-
-# Lancement de l'API
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+# 6. Le point d'entrée (HANDLER)
+CMD [ "main.handler" ]
