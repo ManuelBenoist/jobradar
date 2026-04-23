@@ -52,13 +52,28 @@ with tab_radar:
         df['salary_min'] = pd.to_numeric(df['salary_min'], errors='coerce').fillna(0).astype(int)
         df['original_url'] = df['original_url'].fillna("")
         
-        # Calcul des offres du jour (basé sur la date actuelle)
+        # Nettoyage des crochets et guillemets pour les compétences
+        if 'skills' in df.columns:
+            df['skills'] = df['skills'].str.replace(r"[\[\]']", "", regex=True)
+        
+        # Ajout de la colonne Description si elle n'existe pas encore (Mock pour le futur)
+        if 'description' not in df.columns:
+            df['description'] = "Cliquez pour voir le détail..."
+
+        # LOGIQUE VISUELLE : Matching Score (Indicateur de couleur)
+        def get_score_visual(score):
+            if score >= 85: return f"🟢 {score}%"
+            if score >= 60: return f"🟡 {score}%"
+            return f"🔴 {score}%"
+        
+        df['matching_visual'] = df['matching_score'].apply(get_score_visual)
+
+        # Calcul des offres du jour
         today_str = datetime.now().strftime("%Y-%m-%d")
         new_jobs_today = len(df[df['ingestion_date'] == today_str]) if 'ingestion_date' in df.columns else 0
 
-        # 1. KPI CARDS (4 colonnes propres)
+        # 1. KPI CARDS
         k1, k2, k3, k4 = st.columns(4)
-        
         k1.metric("Nombre total d'offres", len(df))
         k2.metric("Nouvelles offres (24h)", f"+{new_jobs_today}")
         k3.metric("Matching Moyen", f"{int(df['matching_score'].mean())}%")
@@ -66,12 +81,11 @@ with tab_radar:
 
         st.divider()
 
-        # 2. FILTRES SIMPLIFIÉS
+        # 2. FILTRES
         col_f1, col_f2 = st.columns([3, 1])
         search_query = col_f1.text_input("🔍 Rechercher (Poste, Entreprise, Ville, Techno...)", placeholder="ex: AWS, Nantes, Analyste...")
         min_score = col_f2.slider("Score matching min.", 0, 100, 30)
 
-        # Application des filtres
         filtered_df = df[df['matching_score'] >= min_score]
         if search_query:
             mask = (
@@ -82,35 +96,36 @@ with tab_radar:
             )
             filtered_df = filtered_df[mask]
 
-        # 3. AFFICHAGE DU TABLEAU
+        # 3. AFFICHAGE DU TABLEAU AVEC ORDRE ET TRONCATURE
         st.dataframe(
             filtered_df,
             column_config={
-                "matching_score": st.column_config.ProgressColumn(
-                    "Matching", 
-                    min_value=0, max_value=100, format="%d%%"
+                "matching_visual": st.column_config.TextColumn(
+                    "Matching Score", 
+                    help="Vert: >85% | Jaune: >60% | Rouge: <60%",
+                    width="small"
                 ),
-                "original_url": st.column_config.LinkColumn(
-                    "Lien Offre",
-                    display_text="Lien de l'offre (🔗)"
-                ),
-                "title": "Poste",
+                "ingestion_date": st.column_config.DateColumn("Date d'ingestion"),
+                "title": st.column_config.TextColumn("Poste", width="large"),
                 "company_name": "Entreprise",
+                "description": st.column_config.TextColumn("Description", width="medium"),
                 "salary_min": st.column_config.NumberColumn("Salaire Min", format="%d €"),
-                "city": "Ville",
                 "skills": "Compétences",
+                "city": "Ville",
                 "platform": "Source",
-                "ingestion_date": "Date Ingestion"
+                "original_url": st.column_config.LinkColumn(
+                    "Lien offre",
+                    display_text="Lien de l'offre (🔗)"
+                )
             },
             column_order=(
-                "matching_score", "title", "company_name", "original_url", 
-                "city", "salary_min", "skills", "platform", "ingestion_date"
+                "matching_visual", "ingestion_date", "title", "company_name", 
+                "description", "salary_min", "skills", "city", "platform", "original_url"
             ),
             use_container_width=True,
             hide_index=True
         )
 
-        # Indicateur de refresh discret en bas de tableau
         st.caption(f"Dernière synchronisation avec AWS Athena : {datetime.now().strftime('%d/%m/%Y à %H:%M')}")
 
     else:
