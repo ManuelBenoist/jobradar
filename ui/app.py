@@ -30,8 +30,10 @@ st.markdown(
 @st.cache_data(ttl=3600)
 def fetch_job_data():
     API_URL = st.secrets["API_URL"]
+    API_KEY = st.secrets["INTERNAL_API_KEY"] # On récupère la clé dans les secrets
+    headers = {"X-API-Key": API_KEY}
     try:
-        response = requests.get(API_URL, timeout=15)
+        response = requests.get(API_URL, headers=headers, timeout=15)
         response.raise_for_status()
         return response.json()
     except Exception as e:
