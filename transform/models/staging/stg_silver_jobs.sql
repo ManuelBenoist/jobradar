@@ -5,7 +5,7 @@ SELECT
     company_name,
     location_clean,
     description,
-    published_date,
+    published_at,
     extracted_skills,
     salary_min_numeric,
     is_junior,

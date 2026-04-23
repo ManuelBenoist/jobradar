@@ -30,7 +30,7 @@ scoring AS (
         -- 4. Salaire (Déjà converti en nombre par Spark)
         (CASE WHEN salary_min_numeric >= 35000 THEN 15 
               WHEN salary_min_numeric IS NOT NULL THEN 5 
-              ELSE 0 END) AS score_salary
+              ELSE 0 END) AS score_salary,
         
         -- 5. Bonus "fraicheur de l'offre"
         -- Si l'offre a moins de 2 jours, on ajoute 5 points
@@ -53,7 +53,7 @@ SELECT
     company_name,
     location_clean,
     description,
-    published_date,
+    published_at,
     salary_min_numeric,
     extracted_skills,
     source_name,
