@@ -72,7 +72,16 @@ def stage_france_travail(spark):
 
 def apply_silver_logic(df):
     print("🧹 Nettoyage Silver Expert & Feature Engineering...")
-
+    # --- Normalisation des dates de publication ---
+    # On transforme le string ISO en Timestamp Spark
+    df = df.withColumn("published_at", F.to_timestamp(F.col("created_at")))
+    
+    # Sécurité : Si published_at est nul (erreur API), on met la date du jour
+    df = df.withColumn(
+        "published_at", 
+        F.coalesce(F.col("published_at"), F.current_timestamp())
+    )
+    # -------------------------------------------------------
     # 1. Nettoyage HTML + Suppression des caractères invisibles (\xa0, retours à la ligne, etc.)
     df = df.withColumn(
         "description_clean", F.regexp_replace(F.col("description"), "<[^>]*>", " ")
@@ -183,7 +192,7 @@ def apply_silver_logic(df):
         ),
     )
 
-    window_spec = Window.partitionBy("dedup_id").orderBy(F.col("created_at").desc())
+    window_spec = Window.partitionBy("dedup_id").orderBy(F.col("published_at").desc())
 
     # 7. NETTOYAGE FINAL ET RETOUR
     return (
@@ -214,7 +223,7 @@ def run_pipeline():
         "location_clean",
         "description",
         "url",
-        "created_at",
+        "published_at",
         "source_name",
         "extracted_skills",
         "salary_min_numeric",
