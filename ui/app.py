@@ -1,7 +1,7 @@
 import streamlit as st
 import requests
 import pandas as pd
-from datetime import datetime
+from datetime import datetime, timedelta
 
 # --- CONFIGURATION DE LA PAGE ---
 st.set_page_config(
@@ -54,24 +54,24 @@ with tab_radar:
     if data and "jobs" in data and len(data["jobs"]) > 0:
         df = pd.DataFrame(data["jobs"])
 
-        # NETTOYAGE & CALCULS
         df["matching_score"] = (
             pd.to_numeric(df["matching_score"], errors="coerce").fillna(0).astype(int)
         )
         df["salary_min"] = (
             pd.to_numeric(df["salary_min"], errors="coerce").fillna(0).astype(int)
         )
+        # Conversion des dates pour les calculs
+        # On ajoute format='ISO8601' pour gérer les millisecondes variables
+        df["published_at"] = pd.to_datetime(df["published_at"], format='ISO8601', errors='coerce')
+        df["ingestion_date"] = pd.to_datetime(df["ingestion_date"], format='ISO8601', errors='coerce')
+        
         df["original_url"] = df["original_url"].fillna("")
 
-        # Nettoyage des crochets et guillemets pour les compétences
+        # Nettoyage des compétences
         if "skills" in df.columns:
             df["skills"] = df["skills"].str.replace(r"[\[\]']", "", regex=True)
 
-        # Ajout de la colonne Description si elle n'existe pas encore (Mock pour le futur)
-        if "description" not in df.columns:
-            df["description"] = "Cliquez pour voir le détail..."
-
-        # LOGIQUE VISUELLE : Matching Score (Indicateur de couleur)
+        # LOGIQUE VISUELLE : Matching Score
         def get_score_visual(score):
             if score >= 85:
                 return f"🟢 {score}%"
@@ -81,18 +81,15 @@ with tab_radar:
 
         df["matching_visual"] = df["matching_score"].apply(get_score_visual)
 
-        # Calcul des offres du jour
-        today_str = datetime.now().strftime("%Y-%m-%d")
-        new_jobs_today = (
-            len(df[df["ingestion_date"] == today_str])
-            if "ingestion_date" in df.columns
-            else 0
-        )
+        # --- CALCUL DES OFFRES FRAÎCHES (Real Market Date) ---
+        # On calcule les offres publiées il y a moins de 48h
+        limit_date = datetime.now() - timedelta(hours=48)
+        new_jobs_count = len(df[df["published_at"] >= limit_date])
 
         # 1. KPI CARDS
         k1, k2, k3, k4 = st.columns(4)
         k1.metric("Nombre total d'offres", len(df))
-        k2.metric("Nouvelles offres (24h)", f"+{new_jobs_today}")
+        k2.metric("Nouveautés (<48h)", f"{new_jobs_count}")
         k3.metric("Matching Moyen", f"{int(df['matching_score'].mean())}%")
         k4.metric(
             "Salaire Moyen", f"{int(df['salary_min'].mean()):,} €".replace(",", " ")
@@ -101,14 +98,19 @@ with tab_radar:
         st.divider()
 
         # 2. FILTRES
-        col_f1, col_f2 = st.columns([3, 1])
+        col_f1, col_f2, col_f3 = st.columns([2, 1, 1])
         search_query = col_f1.text_input(
             "🔍 Rechercher (Poste, Entreprise, Ville, Techno...)",
             placeholder="ex: AWS, Nantes, Analyste...",
         )
         min_score = col_f2.slider("Score matching min.", 0, 100, 30)
+        show_only_fresh = col_f3.toggle("✨ Uniquement les nouveautés")
 
         filtered_df = df[df["matching_score"] >= min_score]
+        
+        if show_only_fresh:
+            filtered_df = filtered_df[filtered_df["published_at"] >= limit_date]
+
         if search_query:
             mask = (
                 filtered_df["title"].str.contains(search_query, case=False, na=False)
@@ -117,6 +119,7 @@ with tab_radar:
                 )
                 | filtered_df["city"].str.contains(search_query, case=False, na=False)
                 | filtered_df["skills"].str.contains(search_query, case=False, na=False)
+                | filtered_df["description"].str.contains(search_query, case=False, na=False)
             )
             filtered_df = filtered_df[mask]
 
@@ -129,7 +132,10 @@ with tab_radar:
                     help="Vert: >85% | Jaune: >60% | Rouge: <60%",
                     width="small",
                 ),
-                "ingestion_date": st.column_config.DateColumn("Date d'ingestion"),
+                "published_at": st.column_config.DatetimeColumn(
+                    "Publié le", 
+                    format="D MMM, HH:mm"
+                ),
                 "title": st.column_config.TextColumn("Poste", width="large"),
                 "company_name": "Entreprise",
                 "description": st.column_config.TextColumn(
@@ -142,12 +148,12 @@ with tab_radar:
                 "city": "Ville",
                 "platform": "Source",
                 "original_url": st.column_config.LinkColumn(
-                    "Lien offre", display_text="Lien de l'offre (🔗)"
+                    "Lien offre", display_text="🔗"
                 ),
             },
             column_order=(
                 "matching_visual",
-                "ingestion_date",
+                "published_at",      # Priorité à la date de publication
                 "title",
                 "company_name",
                 "description",
@@ -190,21 +196,25 @@ with tab_tech:
             st.markdown("""
             - **API :** FastAPI sur AWS Lambda (Serverless).
             - **IaC :** Terraform pour la reproductibilité.
-            - **CI/CD :** GitHub Actions (Compute déporté à 0€).
-            - **Sécurité :** IAM Roles & Function URLs sécurisées.
+            - **CI/CD :** GitHub Actions.
+            - **Sécurité :** IAM Roles & CORS Middleware.
             """)
 
     st.divider()
-    st.subheader("Extrait Logique : Scoring dbt")
+    st.subheader("Extrait Logique : Scoring dbt & Fraîcheur")
+    # --- MODIFICATION : Mise à jour du snippet SQL ---
     st.code(
         """
--- Calcul du matching score par pondération de mots-clés
+-- Calcul du score avec Bonus Fraîcheur
 SELECT 
     *,
-    (CASE WHEN description ILIKE '%python%' THEN 30 ELSE 0 END +
-     CASE WHEN description ILIKE '%aws%' THEN 40 ELSE 0 END +
-     CASE WHEN description ILIKE '%dbt%' THEN 30 ELSE 0 END) as matching_score
-FROM {{ ref('silver_jobs') }}
+    -- Points techniques
+    (CASE WHEN contains(skills, 'python') THEN 15 ELSE 0 END + ...) as score_tech,
+    
+    -- Bonus de 5pts si l'offre a moins de 2 jours
+    (CASE WHEN date_diff('day', published_at, current_timestamp) <= 2 THEN 5 ELSE 0 END) as score_freshness
+    
+FROM {{ ref('stg_silver_jobs') }}
     """,
         language="sql",
     )
