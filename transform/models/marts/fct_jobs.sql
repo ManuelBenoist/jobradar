@@ -34,7 +34,7 @@ scoring AS (
         
         -- 5. Bonus "fraicheur de l'offre"
         -- Si l'offre a moins de 2 jours, on ajoute 5 points
-        (CASE WHEN date_diff('day', published_at, current_timestamp) <= 2 THEN 20 ELSE 0 END) AS score_freshness
+        (CASE WHEN date_diff('day', published_at, current_timestamp) <= 2 THEN 5 ELSE 0 END) AS score_freshness
  
     FROM jobs
 ),
