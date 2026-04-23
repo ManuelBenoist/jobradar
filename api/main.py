@@ -1,6 +1,6 @@
 import os
 from fastapi import FastAPI, HTTPException
-from fastapi.middleware.cors import CORSMiddleware # Pour le dashboard
+from fastapi.middleware.cors import CORSMiddleware  # Pour le dashboard
 from pyathena import connect
 from pyathena.cursor import DictCursor
 from dotenv import load_dotenv
@@ -17,7 +17,9 @@ app = FastAPI(
 # --- CONFIGURATION CORS (Indispensable pour Streamlit) ---
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"], # On autorisera tout le monde au début pour faciliter les tests
+    allow_origins=[
+        "*"
+    ],  # On autorisera tout le monde au début pour faciliter les tests
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -28,20 +30,19 @@ REGION = os.getenv("AWS_REGION", "eu-west-3")
 DB = os.getenv("ATHENA_DATABASE", "jobradar_db")
 S3_STAGING = os.getenv("ATHENA_S3_STAGING_DIR")
 
+
 @app.get("/")
 def read_root():
     return {
         "message": "Bienvenue sur l'API JobRadar (Running on AWS Lambda)",
-        "endpoints": {
-            "health": "/health",
-            "jobs": "/jobs",
-            "documentation": "/docs"
-        }
+        "endpoints": {"health": "/health", "jobs": "/jobs", "documentation": "/docs"},
     }
+
 
 @app.get("/health")
 def health_check():
     return {"status": "healthy", "service": "jobradar-api-serverless"}
+
 
 @app.get("/jobs")
 def get_jobs(limit: int = 10):
@@ -56,20 +57,19 @@ def get_jobs(limit: int = 10):
             cursor_class=DictCursor,
         )
         cursor = conn.cursor()
-        
+
         query = f"SELECT * FROM api_jobs_ranking LIMIT {limit}"
         cursor.execute(query)
         results = cursor.fetchall()
 
-        return {
-            "total_count": len(results),
-            "database": DB,
-            "jobs": results
-        }
+        return {"total_count": len(results), "database": DB, "jobs": results}
 
     except Exception as e:
         print(f"❌ Erreur Athena : {e}")
-        raise HTTPException(status_code=500, detail=f"Erreur lors de la requête Athena : {str(e)}")
+        raise HTTPException(
+            status_code=500, detail=f"Erreur lors de la requête Athena : {str(e)}"
+        )
+
 
 # --- 2. LE HANDLER (Le pont entre Lambda et FastAPI) ---
 handler = Mangum(app)
