@@ -1,5 +1,5 @@
 import os
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Header
 from fastapi.middleware.cors import CORSMiddleware  # Pour le dashboard
 from pyathena import connect
 from pyathena.cursor import DictCursor
@@ -45,7 +45,15 @@ def health_check():
 
 
 @app.get("/jobs")
-def get_jobs(limit: int = 10):
+def get_jobs(limit: int = 10, x_api_key: str = Header(None)):
+    # Récupération de la clé attendue (configurée dans tes variables Lambda)
+    expected_key = os.getenv("INTERNAL_API_KEY")
+
+    if not expected_key or x_api_key != expected_key:
+        raise HTTPException(
+            status_code=403, 
+            detail="Accès refusé : Clé API invalide ou manquante."
+        )
     if not S3_STAGING:
         raise HTTPException(status_code=500, detail="S3 Staging Dir non configuré")
 
