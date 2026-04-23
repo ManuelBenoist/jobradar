@@ -31,7 +31,11 @@ scoring AS (
         (CASE WHEN salary_min_numeric >= 35000 THEN 15 
               WHEN salary_min_numeric IS NOT NULL THEN 5 
               ELSE 0 END) AS score_salary
-
+        
+        -- 5. Bonus "fraicheur de l'offre"
+        -- Si l'offre a moins de 2 jours, on ajoute 5 points
+        (CASE WHEN date_diff('day', published_at, current_timestamp) <= 2 THEN 20 ELSE 0 END) AS score_freshness
+ 
     FROM jobs
 ),
 
@@ -39,7 +43,7 @@ final_calculation AS (
     SELECT
         *,
         -- Calcul du score brut (Base de 30 points)
-        (30 + score_skills + score_junior + score_senior + penalty_red_flag + bonus_ethical + score_salary) AS raw_score
+        (30 + score_skills + score_junior + score_senior + penalty_red_flag + bonus_ethical + score_salary + score_freshness) AS raw_score
     FROM scoring
 )
 
@@ -49,6 +53,7 @@ SELECT
     company_name,
     location_clean,
     description,
+    published_date,
     salary_min_numeric,
     extracted_skills,
     source_name,

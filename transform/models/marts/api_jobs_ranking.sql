@@ -10,6 +10,7 @@ SELECT
     salary_min_numeric AS salary_min,
     extracted_skills AS skills,
     description,
+    published_date,
     matching_score,
     url AS original_url,
     source_name AS platform,
