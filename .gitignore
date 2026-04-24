@@ -54,3 +54,6 @@ src/lambda/france_travail/*
 !src/lambda/france_travail/*.py
 !src/lambda/france_travail/requirements.txt
 
+# UI 
+.streamlit/*
+secrets.toml

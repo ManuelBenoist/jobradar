@@ -45,7 +45,9 @@ def health_check():
 
 
 @app.get("/jobs")
-def get_jobs(limit: int = 10, x_api_key: str = Header(None)):
+def get_jobs(limit: int = 200, x_api_key: str = Header(None)):
+    if limit > 1000:
+        limit = 1000
     # Récupération de la clé attendue (configurée dans tes variables Lambda)
     expected_key = os.getenv("INTERNAL_API_KEY")
 
@@ -66,7 +68,11 @@ def get_jobs(limit: int = 10, x_api_key: str = Header(None)):
         )
         cursor = conn.cursor()
 
-        query = f"SELECT * FROM api_jobs_ranking LIMIT {limit}"
+        query = f"""
+            SELECT * FROM api_jobs_ranking 
+            ORDER BY matching_score DESC, published_at DESC 
+            LIMIT {limit}
+        """
         cursor.execute(query)
         results = cursor.fetchall()
 

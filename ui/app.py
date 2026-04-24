@@ -28,21 +28,53 @@ st.markdown(
 
 # --- CHARGEMENT DES DONNÉES ---
 @st.cache_data(ttl=3600)
-def fetch_job_data():
+def fetch_job_data(limit):
     API_URL = st.secrets["API_URL"]
     API_KEY = st.secrets["INTERNAL_API_KEY"] # On récupère la clé dans les secrets
     headers = {"X-API-Key": API_KEY}
+    params = {"limit": limit}
     try:
-        response = requests.get(API_URL, headers=headers, timeout=15)
+        response = requests.get(API_URL, headers=headers, params=params, timeout=15)
         response.raise_for_status()
         return response.json()
     except Exception as e:
         st.error(f"Erreur de connexion à l'API : {e}")
         return None
 
+# --- INITIALISATION DE LA MÉMOIRE (Session State) ---
+if "max_limit_fetched" not in st.session_state:
+    st.session_state.max_limit_fetched = 0
 
-data = fetch_job_data()
+# --- SIDEBAR CONFIGURATION ---
+with st.sidebar:
+    st.header("Configuration")
 
+    job_limit = st.sidebar.slider("Nombre d'offres à charger", 50, 1000, 200, step=50)
+    if st.button("🔄 Rafraîchir les données"):
+        st.cache_data.clear() 
+        st.session_state.max_limit_fetched = 0 # On reset le record
+        
+# --- LOGIQUE DE CHARGEMENT INTELLIGENTE ---
+needs_new_scan = job_limit > st.session_state.max_limit_fetched
+
+if needs_new_scan:
+    with st.spinner(f"📡 Scan profond en cours ({job_limit} offres)..."):
+        data_raw = fetch_job_data(limit=job_limit)
+                
+        if data_raw:
+            st.session_state.max_limit_fetched = job_limit
+            st.toast(f"✅ {len(data_raw['jobs'])} offres récupérées !")
+else:
+    # On demande au cache la version du "record". C'est instantané.
+    data_raw = fetch_job_data(limit=st.session_state.max_limit_fetched)
+
+# --- TRONCATURE LOCALE (Slicing) ---
+# On ne montre que ce que le slider demande, même si on a plus en réserve
+data = None
+if data_raw and "jobs" in data_raw:
+    data = data_raw.copy()
+    data["jobs"] = data_raw["jobs"][:job_limit] # On coupe la liste à la taille du slider
+    
 # --- HEADER ---
 st.title("📡 JobRadar Live")
 st.caption(
