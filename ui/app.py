@@ -30,7 +30,7 @@ st.markdown(
 @st.cache_data(ttl=3600)
 def fetch_job_data(limit):
     API_URL = st.secrets["API_URL"]
-    API_KEY = st.secrets["INTERNAL_API_KEY"] # On récupère la clé dans les secrets
+    API_KEY = st.secrets["INTERNAL_API_KEY"]  # On récupère la clé dans les secrets
     headers = {"X-API-Key": API_KEY}
     params = {"limit": limit}
     try:
@@ -40,6 +40,7 @@ def fetch_job_data(limit):
     except Exception as e:
         st.error(f"Erreur de connexion à l'API : {e}")
         return None
+
 
 # --- INITIALISATION DE LA MÉMOIRE (Session State) ---
 if "max_limit_fetched" not in st.session_state:
@@ -51,16 +52,16 @@ with st.sidebar:
 
     job_limit = st.sidebar.slider("Nombre d'offres à charger", 50, 1000, 200, step=50)
     if st.button("🔄 Rafraîchir les données"):
-        st.cache_data.clear() 
-        st.session_state.max_limit_fetched = 0 # On reset le record
-        
+        st.cache_data.clear()
+        st.session_state.max_limit_fetched = 0  # On reset le record
+
 # --- LOGIQUE DE CHARGEMENT INTELLIGENTE ---
 needs_new_scan = job_limit > st.session_state.max_limit_fetched
 
 if needs_new_scan:
     with st.spinner(f"📡 Scan profond en cours ({job_limit} offres)..."):
         data_raw = fetch_job_data(limit=job_limit)
-                
+
         if data_raw:
             st.session_state.max_limit_fetched = job_limit
             st.toast(f"✅ {len(data_raw['jobs'])} offres récupérées !")
@@ -73,8 +74,10 @@ else:
 data = None
 if data_raw and "jobs" in data_raw:
     data = data_raw.copy()
-    data["jobs"] = data_raw["jobs"][:job_limit] # On coupe la liste à la taille du slider
-    
+    data["jobs"] = data_raw["jobs"][
+        :job_limit
+    ]  # On coupe la liste à la taille du slider
+
 # --- HEADER ---
 st.title("📡 JobRadar Live")
 st.caption(
@@ -96,9 +99,13 @@ with tab_radar:
         )
         # Conversion des dates pour les calculs
         # On ajoute format='ISO8601' pour gérer les millisecondes variables
-        df["published_at"] = pd.to_datetime(df["published_at"], format='ISO8601', errors='coerce')
-        df["ingestion_date"] = pd.to_datetime(df["ingestion_date"], format='ISO8601', errors='coerce')
-        
+        df["published_at"] = pd.to_datetime(
+            df["published_at"], format="ISO8601", errors="coerce"
+        )
+        df["ingestion_date"] = pd.to_datetime(
+            df["ingestion_date"], format="ISO8601", errors="coerce"
+        )
+
         df["original_url"] = df["original_url"].fillna("")
 
         # Nettoyage des compétences
@@ -141,7 +148,7 @@ with tab_radar:
         show_only_fresh = col_f3.toggle("✨ Uniquement les nouveautés")
 
         filtered_df = df[df["matching_score"] >= min_score]
-        
+
         if show_only_fresh:
             filtered_df = filtered_df[filtered_df["published_at"] >= limit_date]
 
@@ -153,7 +160,9 @@ with tab_radar:
                 )
                 | filtered_df["city"].str.contains(search_query, case=False, na=False)
                 | filtered_df["skills"].str.contains(search_query, case=False, na=False)
-                | filtered_df["description"].str.contains(search_query, case=False, na=False)
+                | filtered_df["description"].str.contains(
+                    search_query, case=False, na=False
+                )
             )
             filtered_df = filtered_df[mask]
 
@@ -167,8 +176,7 @@ with tab_radar:
                     width="small",
                 ),
                 "published_at": st.column_config.DatetimeColumn(
-                    "Publié le", 
-                    format="D MMM, HH:mm"
+                    "Publié le", format="D MMM, HH:mm"
                 ),
                 "title": st.column_config.TextColumn("Poste", width="large"),
                 "company_name": "Entreprise",
@@ -187,7 +195,7 @@ with tab_radar:
             },
             column_order=(
                 "matching_visual",
-                "published_at",      # Priorité à la date de publication
+                "published_at",  # Priorité à la date de publication
                 "title",
                 "company_name",
                 "description",
@@ -213,7 +221,7 @@ with tab_radar:
 # --- ONGLET 2 : ARCHITECTURE & TECH ---
 with tab_tech:
     st.header("Spécifications Techniques")
-    
+
     # Intégration du badge GitHub Actions
     st.markdown(
         """
@@ -222,7 +230,7 @@ with tab_tech:
         ---
         """
     )
-    
+
     col_a, col_b = st.columns(2)
 
     with col_a:

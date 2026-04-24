@@ -53,8 +53,7 @@ def get_jobs(limit: int = 200, x_api_key: str = Header(None)):
 
     if not expected_key or x_api_key != expected_key:
         raise HTTPException(
-            status_code=403, 
-            detail="Accès refusé : Clé API invalide ou manquante."
+            status_code=403, detail="Accès refusé : Clé API invalide ou manquante."
         )
     if not S3_STAGING:
         raise HTTPException(status_code=500, detail="S3 Staging Dir non configuré")

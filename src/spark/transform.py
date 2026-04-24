@@ -75,11 +75,10 @@ def apply_silver_logic(df):
     # --- Normalisation des dates de publication ---
     # On transforme le string ISO en Timestamp Spark
     df = df.withColumn("published_at", F.to_timestamp(F.col("created_at")))
-    
+
     # Sécurité : Si published_at est nul (erreur API), on met la date du jour
     df = df.withColumn(
-        "published_at", 
-        F.coalesce(F.col("published_at"), F.current_timestamp())
+        "published_at", F.coalesce(F.col("published_at"), F.current_timestamp())
     )
     # -------------------------------------------------------
     # 1. Nettoyage HTML + Suppression des caractères invisibles (\xa0, retours à la ligne, etc.)
@@ -103,14 +102,36 @@ def apply_silver_logic(df):
 
     # 3. EXTRACTION DES SKILLS
     tech_map = {
-        "python": "python",
-        "sql": "sql",
-        "dbt": "dbt",
-        "aws": "aws",
-        "spark": "spark",
-        "docker": "docker",
-        "kubernetes": "kubernetes|k8s",
-        "terraform": "terraform",
+        # Langages
+        "python": r"\bpython\b",
+        "sql": r"\bsql\b",
+        "pyspark": r"\bpyspark\b",
+        "scala": r"\bscala\b",
+        "spark": r"\bspark\b",
+        # Cloud AWS
+        "aws": r"\baws\b|amazon\s?web\s?services",
+        "S3": r"\bs3\b|amazon\s?s3",
+        "Lambda": r"\blambda\b",
+        "ECR": r"\becr\b",
+        "Athena": r"\bathena\b",
+        # Data Stack & Tools
+        "dbt": r"\bdbt\b",
+        "snowflake": r"\bsnowflake\b",
+        "airflow": r"\bairflow\b",
+        "pandas": r"\bpandas\b",
+        "streamlit": r"\bstreamlit\b",
+        "fastapi": r"\bfastapi|fast\s?api\b",
+        # DevOps & CI/CD
+        "git": r"\bgit\b",
+        "github_actions": r"github\s?actions",
+        "cicd": r"ci/cd|continuous\s?integration|continuous\s?delivery",
+        "docker": r"\bdocker\b",
+        "kubernetes": r"kubernetes|\bk8s\b",
+        "terraform": r"\bterraform\b",
+        # Concepts (Bonus culture)
+        "architecture_medaillon": r"architecture\s?m[ée]daillon|medallion\s?architecture",
+        "etl": r"\betl\b|extract\s?transform\s?load",
+        "elt": r"\belt\b|extract\s?load\s?transform",
     }
 
     tag_exprs = [
@@ -176,6 +197,9 @@ def apply_silver_logic(df):
         F.col("search_text").rlike(ethical_regex)
         | F.lower(F.col("company_name")).rlike(ethical_regex),
     )
+    # Détection du Télétravail (Regex robuste)
+    remote_regex = r"télétravail|remote|home\s?office|full\s?remote|distanciel"
+    df = df.withColumn("is_remote", F.col("search_text").rlike(remote_regex))
 
     # 6. DÉDUPLICATION (Window Function)
     # On prépare le hash d'ID unique pour la partition
@@ -231,6 +255,7 @@ def run_pipeline():
         "is_senior",
         "is_red_flag",
         "is_ethical",
+        "is_remote",
         "ingestion_date",
     ]
 

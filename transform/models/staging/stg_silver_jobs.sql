@@ -12,6 +12,7 @@ SELECT
     is_senior,
     is_red_flag,
     is_ethical,
+    is_remote,
     source_name,
     url,
     ingestion_date
