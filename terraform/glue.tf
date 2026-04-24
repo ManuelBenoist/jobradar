@@ -84,6 +84,10 @@ resource "aws_glue_catalog_table" "processed_jobs" {
       name = "is_ethical"
       type = "boolean"
     }
+    columns {
+      name = "is_remote"
+      type = "boolean"
+    }
   }
 
   partition_keys {
