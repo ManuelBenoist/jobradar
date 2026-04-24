@@ -9,7 +9,7 @@ SELECT
     location_clean AS city,      -- On renomme pour que ce soit plus parlant pour l'API
     salary_min_numeric AS salary_min,
     extracted_skills AS skills,
-    description,
+    TRIM(description) AS description, 
     published_at,
     matching_score,
     url AS original_url,
