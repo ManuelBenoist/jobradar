@@ -213,7 +213,16 @@ with tab_radar:
 # --- ONGLET 2 : ARCHITECTURE & TECH ---
 with tab_tech:
     st.header("Spécifications Techniques")
-
+    
+    # Intégration du badge GitHub Actions
+    st.markdown(
+        """
+        **État de la pipeline :** [![JobRadar Data Pipeline (Silver & Gold)](https://github.com/ManuelBenoist/jobradar/actions/workflows/data_pipeline.yml/badge.svg)](https://github.com/ManuelBenoist/jobradar/actions/workflows/data_pipeline.yml)
+        
+        ---
+        """
+    )
+    
     col_a, col_b = st.columns(2)
 
     with col_a:
