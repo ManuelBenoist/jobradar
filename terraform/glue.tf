@@ -49,8 +49,8 @@ resource "aws_glue_catalog_table" "processed_jobs" {
       type = "string"
     }
     columns {
-      name = "created_at"
-      type = "string"
+      name = "published_at"
+      type = "timestamp"
     }
     columns {
       name = "source_name"
