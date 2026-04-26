@@ -69,6 +69,47 @@ def stage_france_travail(spark):
         )
     )
 
+def stage_jsearch(spark):
+    print("📥 Extraction JSearch (Score: 1.0)...")
+    return (
+        spark.read.option("multiLine", "true")
+        .option("recursiveFileLookup", "true")
+        .json(f"{RAW_PATH}/jsearch/")
+        .select(F.explode("results").alias("job"))
+        .select("job.*")
+        .select(
+            F.col("job_id").cast("string"),
+            F.col("job_title").alias("title"),
+            F.col("employer_name").alias("company_name"),
+            F.col("job_description").alias("description"), # Full text !
+            F.concat_ws(", ", F.col("job_city"), F.col("job_country")).alias("location"),
+            F.lit(None).cast("string").alias("salary_info"), # JSearch a peu de salaires exploitables en FR
+            F.col("job_posted_at_datetime_utc").alias("created_at"),
+            F.col("job_apply_link").alias("url"),
+            F.lit("JSearch").alias("source_name"),
+        )
+    )
+
+def stage_jooble(spark):
+    print("📥 Extraction Jooble (Score: 1.0)...")
+    return (
+        spark.read.option("multiLine", "true")
+        .option("recursiveFileLookup", "true")
+        .json(f"{RAW_PATH}/jooble/")
+        .select(F.explode("results").alias("job"))
+        .select("job.*")
+        .select(
+            F.col("id").cast("string").alias("job_id"),
+            F.col("title"),
+            F.col("company").alias("company_name"),
+            F.col("snippet").alias("description"), # Jooble renvoie un snippet long ou HTML
+            F.col("location"),
+            F.col("salary").alias("salary_info"),
+            F.col("updated").alias("created_at"),
+            F.col("link").alias("url"),
+            F.lit("Jooble").alias("source_name"),
+        )
+    )
 
 def apply_silver_logic(df):
     print("🧹 Nettoyage Silver Expert & Feature Engineering...")
@@ -262,12 +303,14 @@ def run_pipeline():
     try:
         df_adz = stage_adzuna(spark)
         df_ft = stage_france_travail(spark)
+        df_js = stage_jsearch(spark)
+        df_jb = stage_jooble(spark)
 
         print(
-            f"✅ Staging terminé : {df_adz.count()} Adzuna, {df_ft.count()} France Travail."
+            f"✅ Staging terminé : {df_adz.count()} Adzuna, {df_ft.count()} France Travail, {df_js.count()} JSearch, {df_jb.count()} Jooble."
         )
 
-        df_silver = apply_silver_logic(df_adz.unionByName(df_ft))
+        df_silver = apply_silver_logic(df_adz.unionByName(df_ft).unionByName(df_js).unionByName(df_jb))
 
         print(f"🚀 Écriture de {df_silver.count()} offres uniques vers S3...")
 
