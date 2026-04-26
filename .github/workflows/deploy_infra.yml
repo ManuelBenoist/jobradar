@@ -32,6 +32,7 @@ jobs:
           done
 
       - name: Terraform Init & Apply
+        working-directory: ./terraform
         env:
           TF_VAR_jsearch_api_key: ${{ secrets.JSEARCH_API_KEY }}
           TF_VAR_jooble_api_key: ${{ secrets.JOOBLE_API_KEY }}

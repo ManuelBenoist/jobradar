@@ -7,7 +7,7 @@ terraform {
   }
   # Configuration du backend S3 pour stocker l'état de Terraform
   backend "s3" {
-    bucket = "jobradar-tfstate-manuel-cloud" # Le nom du bucket créé à l'étape 1
+    bucket = "jobradar-tfstate-manuel-cloud"
     key    = "terraform.tfstate"
     region = "eu-west-3"
   }
