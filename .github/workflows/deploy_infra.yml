@@ -15,19 +15,19 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: eu-west-3
+
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
 
-      - name: Setup Python
-        uses: actions/setup-python@v5
-        with:
-          python-version: '3.11'
-
-      - name: Install dependencies for all Lambda
+      - name: Install dependencies (Lambda)
         run: |
-          # On boucle sur tous les dossiers pour installer requests partout
           for dir in adzuna france_travail jsearch jooble; do
-            echo "📦 Installation des dépendances pour $dir..."
             pip install requests --target src/lambda/$dir/
           done
 
