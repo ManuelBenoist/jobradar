@@ -40,6 +40,7 @@ jobs:
           TF_VAR_adzuna_app_key: ${{ secrets.ADZUNA_APP_KEY }}
           TF_VAR_ft_client_id: ${{ secrets.FRANCE_TRAVAIL_CLIENT_ID }}
           TF_VAR_ft_client_secret: ${{ secrets.FRANCE_TRAVAIL_CLIENT_SECRET }}
+          TF_VAR_internal_api_key: ${{ secrets.INTERNAL_API_KEY }}
           TF_VAR_athena_staging_dir: "s3://jobradar-athena-results-manuel-cloud/athena-temp/"
         run: |
           terraform init

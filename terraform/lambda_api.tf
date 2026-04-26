@@ -46,6 +46,7 @@ resource "aws_lambda_function" "jobradar_api" {
     variables = {
       ATHENA_DATABASE       = "jobradar_db"
       ATHENA_S3_STAGING_DIR = var.athena_staging_dir
+      INTERNAL_API_KEY      = var.internal_api_key
     }
   }
 }

@@ -54,3 +54,10 @@ variable "athena_staging_dir" {
   description = "Le bucket S3 pour les résultats Athena"
   type        = string
 }
+
+# Variable pour l'API de JobRadar
+variable "internal_api_key" {
+  description = "Clé secrète pour sécuriser l'API"
+  type        = string
+  sensitive   = true
+}
