@@ -120,13 +120,15 @@ with tab_radar:
 
         # LOGIQUE VISUELLE : Matching Score
         def get_score_visual(score):
-            if score >= 85:
+            if score >= 80:
                 return f"🟢 {score}%"
             if score >= 60:
                 return f"🟡 {score}%"
             return f"🔴 {score}%"
 
         df["matching_visual"] = df["matching_score"].apply(get_score_visual)
+        df["semantic_score"] = df["semantic_score"].apply(get_score_visual)
+        df["rules_score"] = df["rules_score"].apply(get_score_visual)
 
         # --- CALCUL DES OFFRES FRAÎCHES (Real Market Date) ---
         # On calcule les offres publiées il y a moins de 48h
@@ -187,6 +189,7 @@ with tab_radar:
                     format="%d",
                     min_value=0,
                     max_value=100,
+                    width="small",
                 ),
                 "rules_score": st.column_config.ProgressColumn(
                     "📋 Score Règles",
@@ -194,6 +197,7 @@ with tab_radar:
                     format="%d",
                     min_value=0,
                     max_value=100,
+                    width="small",
                 ),
                 "published_at": st.column_config.DatetimeColumn(
                     "Publié le", format="D MMM, HH:mm"
