@@ -6,6 +6,7 @@ from pyspark.sql.functions import pandas_udf
 
 import os
 from dotenv import load_dotenv
+
 load_dotenv(override=True)
 
 # --- CONFIGURATION ---
@@ -14,14 +15,20 @@ SILVER_PATH = "s3a://jobradar-processed-manuel-cloud/silver_jobs"
 
 model_cache = None
 
+
 def create_spark_session():
     return (
         SparkSession.builder.appName("JobRadar_Silver_Layer")
-        .master("local[1]") # CRUCIAL : GitHub Runner n'a que 7Go de RAM. 1 seul worker suffit.
+        .master(
+            "local[1]"
+        )  # CRUCIAL : GitHub Runner n'a que 7Go de RAM. 1 seul worker suffit.
         .config("spark.driver.memory", "4g")
         .config("spark.executor.memory", "4g")
         .config("spark.sql.execution.arrow.maxRecordsPerBatch", "16")
-        .config("spark.jars.packages", "org.apache.hadoop:hadoop-aws:3.3.4,com.amazonaws:aws-java-sdk-bundle:1.12.262")
+        .config(
+            "spark.jars.packages",
+            "org.apache.hadoop:hadoop-aws:3.3.4,com.amazonaws:aws-java-sdk-bundle:1.12.262",
+        )
         .config("spark.hadoop.fs.s3a.impl", "org.apache.hadoop.fs.s3a.S3AFileSystem")
         .config("spark.hadoop.fs.s3a.endpoint", "s3.eu-west-3.amazonaws.com")
         # On utilise os.getenv pour que GitHub récupère ses "Secrets" automatiquement
@@ -77,6 +84,7 @@ def stage_france_travail(spark):
         )
     )
 
+
 def stage_jsearch(spark):
     print("📥 Extraction JSearch (Score: 1.0)...")
     return (
@@ -89,14 +97,19 @@ def stage_jsearch(spark):
             F.col("job_id").cast("string"),
             F.col("job_title").alias("title"),
             F.col("employer_name").alias("company_name"),
-            F.col("job_description").alias("description"), # Full text !
-            F.concat_ws(", ", F.col("job_city"), F.col("job_country")).alias("location"),
-            F.lit(None).cast("string").alias("salary_info"), # JSearch a peu de salaires exploitables en FR
+            F.col("job_description").alias("description"),  # Full text !
+            F.concat_ws(", ", F.col("job_city"), F.col("job_country")).alias(
+                "location"
+            ),
+            F.lit(None)
+            .cast("string")
+            .alias("salary_info"),  # JSearch a peu de salaires exploitables en FR
             F.col("job_posted_at_datetime_utc").alias("created_at"),
             F.col("job_apply_link").alias("url"),
             F.lit("JSearch").alias("source_name"),
         )
     )
+
 
 def stage_jooble(spark):
     print("📥 Extraction Jooble (Score: 1.0)...")
@@ -110,7 +123,9 @@ def stage_jooble(spark):
             F.col("id").cast("string").alias("job_id"),
             F.col("title"),
             F.col("company").alias("company_name"),
-            F.col("snippet").alias("description"), # Jooble renvoie un snippet long ou HTML
+            F.col("snippet").alias(
+                "description"
+            ),  # Jooble renvoie un snippet long ou HTML
             F.col("location"),
             F.col("salary").alias("salary_info"),
             F.col("updated").alias("created_at"),
@@ -118,23 +133,24 @@ def stage_jooble(spark):
             F.lit("Jooble").alias("source_name"),
         )
     )
-    
+
+
 def apply_silver_logic(df):
     @pandas_udf("array<float>")
     def vectorize_text_udf(texts: pd.Series) -> pd.Series:
         global model_cache
         import torch
         from sentence_transformers import SentenceTransformer
-        
-        torch.set_num_threads(1) 
-        
+
+        torch.set_num_threads(1)
+
         if model_cache is None:
             # On force le modèle sur le CPU pour éviter les conflits avec la puce graphique (MPS/Metal)
-            model_cache = SentenceTransformer('all-MiniLM-L6-v2', device='cpu')
-        
+            model_cache = SentenceTransformer("all-MiniLM-L6-v2", device="cpu")
+
         embeddings = model_cache.encode(texts.tolist(), show_progress_bar=False)
         return pd.Series(embeddings.tolist())
-    
+
     print("🧹 Nettoyage Silver Expert & Feature Engineering...")
     # --- Normalisation des dates de publication ---
     # On transforme le string ISO en Timestamp Spark
@@ -171,20 +187,35 @@ def apply_silver_logic(df):
     months_regex = r"(\d+)\s*mois"
 
     # Extraction des années
-    df = df.withColumn("ext_years", F.regexp_extract(F.lower(F.col("description_clean")), years_regex, 1).cast("float"))
-    
+    df = df.withColumn(
+        "ext_years",
+        F.regexp_extract(F.lower(F.col("description_clean")), years_regex, 1).cast(
+            "float"
+        ),
+    )
+
     # Extraction des mois (qu'on convertit en fraction d'année)
-    df = df.withColumn("ext_months", F.regexp_extract(F.lower(F.col("description_clean")), months_regex, 1).cast("float") / 12.0)
+    df = df.withColumn(
+        "ext_months",
+        F.regexp_extract(F.lower(F.col("description_clean")), months_regex, 1).cast(
+            "float"
+        )
+        / 12.0,
+    )
 
     # Priorité : si on trouve des années, on prend, sinon on regarde les mois
-    df = df.withColumn("exp_min_required", F.coalesce(F.col("ext_years"), F.col("ext_months")))
+    df = df.withColumn(
+        "exp_min_required", F.coalesce(F.col("ext_years"), F.col("ext_months"))
+    )
 
     # Sécurité : On plafonne à 15 ans (pour éviter d'extraire des numéros de rue ou de diplôme par erreur)
     df = df.withColumn(
-        "exp_min_required", 
-        F.when(F.col("exp_min_required") <= 15, F.col("exp_min_required")).otherwise(None)
+        "exp_min_required",
+        F.when(F.col("exp_min_required") <= 15, F.col("exp_min_required")).otherwise(
+            None
+        ),
     )
-    
+
     # Nettoyage des colonnes de calcul
     df = df.drop("ext_years", "ext_months")
 
@@ -308,11 +339,16 @@ def apply_silver_logic(df):
     # --- VECTORISATION ---
     # On vectorise le titre + la description pour avoir un maximum de contexte sémantique
     # On limite à 1000 caractères pour ne pas exploser la mémoire en local
-    df = df.withColumn("combined_text_for_vector", F.substring(F.concat_ws(" ", F.col("title"), F.col("description")), 1, 1000))
-    
+    df = df.withColumn(
+        "combined_text_for_vector",
+        F.substring(F.concat_ws(" ", F.col("title"), F.col("description")), 1, 1000),
+    )
+
     print("🧠 Calcul des embeddings NLP (cela peut prendre 1-2 minutes)...")
-    df = df.withColumn("description_vector", vectorize_text_udf(F.col("combined_text_for_vector")))
-    
+    df = df.withColumn(
+        "description_vector", vectorize_text_udf(F.col("combined_text_for_vector"))
+    )
+
     df = df.drop("combined_text_for_vector")
     # 7. NETTOYAGE FINAL ET RETOUR
     return (
@@ -368,10 +404,10 @@ def run_pipeline():
         )
         # Union de toutes les sources (Production)
         raw_df = df_adz.unionByName(df_ft).unionByName(df_js).unionByName(df_jb)
-        
+
         # On applique toute ta logique sur TOUTES les données
         df_silver = apply_silver_logic(raw_df)
-        
+
         print(f"🚀 Écriture de {df_silver.count()} offres uniques vers S3...")
 
         df_silver.select(silver_columns).write.mode("overwrite").partitionBy(
@@ -397,4 +433,3 @@ def run_pipeline():
 
 if __name__ == "__main__":
     run_pipeline()
-

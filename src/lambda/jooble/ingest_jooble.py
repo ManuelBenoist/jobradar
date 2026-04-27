@@ -11,38 +11,37 @@ logger.setLevel(logging.INFO)
 
 s3_client = boto3.client("s3")
 
+
 def fetch_jooble_jobs(keyword: str, where: str, api_key: str) -> dict:
     """Fetch les offres d'emploi depuis Jooble via POST request."""
     # URL de l'API standard Jooble
     endpoint = f"https://fr.jooble.org/api/{api_key}"
-    
+
     headers = {"Content-Type": "application/json"}
-    
+
     # Payload minimaliste
-    payload = {
-        "keywords": keyword,
-        "location": where
-    }
+    payload = {"keywords": keyword, "location": where}
 
     logger.info(f"Appel Jooble pour : {keyword} à {where}")
-    
+
     try:
         response = requests.post(endpoint, headers=headers, json=payload, timeout=20)
         response.raise_for_status()
         data = response.json()
-        
+
         # Extraction des résultats (clé 'jobs')
         results = data.get("jobs", [])
-        
+
         return {
             "count": data.get("totalCount", len(results)),
             "results": results,
             "keyword": keyword,
-            "source": "jooble"
+            "source": "jooble",
         }
     except Exception as e:
         logger.error(f"Erreur API Jooble : {str(e)}")
         raise e
+
 
 def lambda_handler(event, context):
     """Point d'entrée AWS Lambda"""
@@ -67,16 +66,14 @@ def lambda_handler(event, context):
 
         # 4. Écriture S3
         s3_client.put_object(
-            Bucket=bucket_name,
-            Key=filename,
-            Body=json.dumps(data, ensure_ascii=False)
+            Bucket=bucket_name, Key=filename, Body=json.dumps(data, ensure_ascii=False)
         )
 
         logger.info(f"✅ {len(data['results'])} offres Jooble stockées dans {filename}")
-        
+
         return {
             "statusCode": 200,
-            "body": f"Succès Jooble : {len(data['results'])} offres."
+            "body": f"Succès Jooble : {len(data['results'])} offres.",
         }
 
     except Exception as e:
