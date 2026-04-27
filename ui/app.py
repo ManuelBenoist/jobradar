@@ -129,7 +129,9 @@ with tab_radar:
         df["matching_visual"] = df["matching_score"].apply(get_score_visual)
         df["semantic_score"] = df["semantic_score"].apply(get_score_visual)
         df["rules_score"] = df["rules_score"].apply(get_score_visual)
-
+        df["salary_visual"] = df["salary_min"].apply(
+                    lambda x: f"{int(x):,} €".replace(",", " ") if x > 0 else "N/A"
+                )
         # --- CALCUL DES OFFRES FRAÎCHES (Real Market Date) ---
         # On calcule les offres publiées il y a moins de 48h
         limit_date = datetime.now() - timedelta(hours=48)
@@ -140,9 +142,13 @@ with tab_radar:
         k1.metric("Nombre total d'offres", len(df))
         k2.metric("Nouveautés (<48h)", f"{new_jobs_count}")
         k3.metric("Matching Moyen", f"{int(df['matching_score'].mean())}%")
-        k4.metric(
-            "Salaire Moyen", f"{int(df['salary_min'].mean()):,} €".replace(",", " ")
-        )
+        valid_salaries = df[df['salary_min'] > 0]['salary_min']
+        if not valid_salaries.empty:
+            avg_salary_text = f"{int(valid_salaries.mean()):,} €".replace(",", " ")
+        else:
+            avg_salary_text = "N/A"
+            
+        k4.metric("Salaire Moyen (quand renseigné)", avg_salary_text)
 
         st.divider()
 
@@ -180,7 +186,7 @@ with tab_radar:
             column_config={
                 "matching_visual": st.column_config.TextColumn(
                     "Matching Score",
-                    help="Vert: >85% | Jaune: >60% | Rouge: <60%",
+                    help="Moyenne pondérée du matching (semantique et règles)",
                     width="small",
                 ),
                 "semantic_score": st.column_config.TextColumn(
@@ -201,10 +207,10 @@ with tab_radar:
                 "description": st.column_config.TextColumn(
                     "Description", width="medium"
                 ),
-                "salary_min": st.column_config.NumberColumn(
-                    "Salaire Min", format="%d €"
+                "salary_visual": st.column_config.TextColumn(
+                    "Salaire Min", width="small"
                 ),
-                "skills": "Compétences",
+                "skills": st.column_config.TextColumn("Compétences", width="medium"),
                 "city": "Ville",
                 "platform": "Source",
                 "original_url": st.column_config.LinkColumn(
@@ -219,7 +225,7 @@ with tab_radar:
                 "title",
                 "company_name",
                 "description",
-                "salary_min",
+                "salary_visual",
                 "skills",
                 "city",
                 "platform",
