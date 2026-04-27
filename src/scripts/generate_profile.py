@@ -5,14 +5,10 @@ import os
 # --- CONFIGURATION DU PROFIL ---
 # Description détaillée du profil idéal pour générer un vecteur d'embedding
 MY_PROFILE_DESC = """
-Data Engineer et DevOps Junior passionné par l'écosystème Data.
-Compétences : 
-- Python, SQL, DBT, Spark (PySpark ou ScalaSpark).
-- Infrastructure et Cloud : AWS (S3, Lambda, Glue, Athena), Terraform, Docker, CI/CD, GitHub Actions. 
-- Méthodologies : Architecture Medallion, ETL, ELT, Data Lakehouse, Analyse de données avec Pandas.
-Sensible aux projets à impact positif (Data for Good), aux enjeux environnementaux, à l'éthique et à l'économie sociale et solidaire (ESS). 
-Recherche un poste de cadre en CDI, télétravail partiel accepté (par exemple 2 jours par semaine).
-Localisation : Nantes ou Pays de la Loire.
+Nous recherchons un Data Engineer / Devops Junior passionné pour rejoindre notre équipe technique basée à Nantes, Pays de la Loire. 
+Dans un environnement moderne de type Data Lakehouse, vous participerez à la construction de pipelines ETL/ELT robustes en utilisant Python, SQL, dbt, Spark (PySpark et ScalaSpark) et Pandas. Vous interviendrez sur notre infrastructure Cloud AWS (S3, Lambda, Glue, Athena) automatisée avec Terraform et Docker ou encore Gitlab CI/CD ou Github Actions.
+En tant qu'entreprise engagée et certifiée B Corp et ESS, nous plaçons l'impact positif et l'éthique au cœur de nos projets Data for Good. Nous offrons un cadre de travail stimulant avec du mentorat pour les profils juniors et une forte culture de contribution à l'open source, l'environnement, le développement durable et le social. 
+Le poste est ouvert en CDI avec un rythme de télétravail flexible (2 à 3 jours par semaine). Si vous aimez l'architecture Medallion et le Clean Code, rejoignez notre aventure à impact !
 """
 
 OUTPUT_PATH = "transform/seeds/ideal_profile_vector.csv"

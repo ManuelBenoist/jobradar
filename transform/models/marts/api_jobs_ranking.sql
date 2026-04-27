@@ -14,6 +14,8 @@ SELECT
     matching_score,
     semantic_score,
     rules_score,
+    positive_labels,
+    negative_labels,
     url AS original_url,
     source_name AS platform,
     ingestion_date

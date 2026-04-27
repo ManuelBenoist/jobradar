@@ -204,6 +204,8 @@ with tab_radar:
                 ),
                 "title": st.column_config.TextColumn("Poste", width="large"),
                 "company_name": "Entreprise",
+                "positive_labels": st.column_config.TextColumn("Points Positifs", width="medium"),
+                "negative_labels": st.column_config.TextColumn("Points Négatifs", width="medium"),
                 "description": st.column_config.TextColumn(
                     "Description", width="medium"
                 ),
@@ -218,11 +220,13 @@ with tab_radar:
                 ),
             },
             column_order=(
+                "published_at",  # Priorité à la date de publication
                 "matching_visual",
+                "title",
                 "semantic_score",
                 "rules_score",
-                "published_at",  # Priorité à la date de publication
-                "title",
+                "positive_labels",
+                "negative_labels",
                 "company_name",
                 "description",
                 "salary_visual",
@@ -231,7 +235,7 @@ with tab_radar:
                 "platform",
                 "original_url",
             ),
-            use_container_width=True,
+            width="stretch",
             hide_index=True,
         )
 

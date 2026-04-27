@@ -92,10 +92,37 @@ pillars AS (
     LEFT JOIN scoring_blocks s ON j.job_id = s.job_id
 ),
 
+-- --- 🏷️ GÉNÉRATION DES LABELS LISIBLES ---
+labels_extraction AS (
+    SELECT
+        job_id,
+        -- Points Positifs
+        ARRAY_JOIN(FILTER(ARRAY[
+            CASE WHEN p_exp_bonus > 0 THEN '🌱 Junior Friendly' END,
+            CASE WHEN p_impact_positive > 0 THEN '🌍 Impact Positif' END,
+            CASE WHEN p_culture_training > 0 THEN '🎓 Mentorat/Formation' END,
+            CASE WHEN p_culture_os > 0 THEN '💻 Open Source' END,
+            CASE WHEN p_remote > 0 THEN '🏠 Télétravail' END,
+            CASE WHEN p_tech_skills > 40 THEN '🚀 Stack de pointe' END
+        ], x -> x IS NOT NULL), ' | ') AS positive_labels,
+
+        -- Points Négatifs
+        ARRAY_JOIN(FILTER(ARRAY[
+            CASE WHEN p_internship_veto < 0 THEN '🚫 Stage/Alternance' END,
+            CASE WHEN p_exp_penalty <= -50 THEN '⚠️ Seniorité élevée' END,
+            CASE WHEN p_exp_penalty BETWEEN -49 AND -15 THEN '⚖️ Expérience requise' END,
+            CASE WHEN p_ethics < 0 THEN '🏦 Secteur Sensible' END,
+            CASE WHEN p_years_veto < 0 THEN '⏳ > 2 ans exp.' END
+        ], x -> x IS NOT NULL), ' | ') AS negative_labels
+    FROM pillars
+),
+
 -- --- 🧬 ASSEMBLAGE FINAL ---
 final_calculation AS (
     SELECT
         j.*,
+        l.positive_labels,
+        l.negative_labels,
         (
             {{ var('base_score') }} + 
             COALESCE(p.p_exp_bonus, 0) + 
@@ -115,6 +142,7 @@ final_calculation AS (
     FROM jobs j
     LEFT JOIN pillars p ON j.job_id = p.job_id
     LEFT JOIN vector_math vm ON j.job_id = vm.job_id
+    LEFT JOIN labels_extraction l ON j.job_id = l.job_id
 )
 
 SELECT 
