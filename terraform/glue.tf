@@ -88,6 +88,14 @@ resource "aws_glue_catalog_table" "processed_jobs" {
       name = "is_remote"
       type = "boolean"
     }
+    columns {
+      name = "exp_min_required"
+      type = "float"
+    }
+    columns {
+      name = "description_vector"
+      type = "array<float>"
+    }
   }
 
   partition_keys {

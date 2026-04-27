@@ -30,7 +30,7 @@ jobs:
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           AWS_REGION: eu-west-3
         run: |
-          pip install pyspark==3.4.1 python-dotenv boto3
+          pip install pyspark==3.4.1 python-dotenv boto3 pandas sentence-transformers torch
           python src/spark/transform.py
 
   # --- JOB 2 : Transformation dbt (Gold Layer) ---
