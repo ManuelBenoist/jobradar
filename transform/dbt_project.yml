@@ -22,7 +22,11 @@ vars:
   bonus_junior_flag: 25
   bonus_junior_title: 15
   penalty_senior: -40       # On tape un peu plus fort sur le Senior
+  penalty_lead: -50     
+  penalty_mid_experience: -20 # Nouveau : pour les offres > 2 ans
+  penalty_high_experience: -50 # Nouveau : pour les offres > 5 ans    
   penalty_technician: -15
+  penalty_hidden_seniority: -10  # Pour les phrases type "expérience significative"
   
   # Éthique
   penalty_ethics_light: -15 # Banques, Finance...

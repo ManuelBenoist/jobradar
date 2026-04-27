@@ -6,15 +6,17 @@
 SELECT 
     title,
     company_name,
-    location_clean AS city,      -- On renomme pour que ce soit plus parlant pour l'API
+    location_clean AS city,
     salary_min_numeric AS salary_min,
     extracted_skills AS skills,
     TRIM(description) AS description, 
     published_at,
     matching_score,
+    semantic_score,
+    rules_score,
     url AS original_url,
     source_name AS platform,
     ingestion_date
 FROM {{ ref('fct_jobs') }}
-WHERE matching_score >= 40       -- On cache les offres qui ne correspondent pas du tout
+WHERE matching_score >= 40 
 ORDER BY matching_score DESC, ingestion_date DESC

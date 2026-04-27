@@ -8,6 +8,8 @@ SELECT
     published_at,
     extracted_skills,
     salary_min_numeric,
+    exp_min_required,
+    description_vector,
     is_junior,
     is_senior,
     is_red_flag,

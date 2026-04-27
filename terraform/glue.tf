@@ -90,7 +90,7 @@ resource "aws_glue_catalog_table" "processed_jobs" {
     }
     columns {
       name = "exp_min_required"
-      type = "float"
+      type = "double"
     }
     columns {
       name = "description_vector"
