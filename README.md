@@ -25,6 +25,17 @@ Organisation en architecture médaillon :
     * **Gold** : Calcul du score de matching (SQL analytique) et agrégats métier.
 * **AWS Athena :** Moteur de requêtage serverless permettant d'exposer les données Gold sans base de données managée.
 
+### Ajustement du moteur de matching
+
+Le projet utilise un moteur de scoring hybride combinant la similarité sémantique (NLP) et des règles métier déterministes. Si vous constatez que certaines offres remontent avec un score trop élevé malgré des mots-clés incompatibles (ex: "Expérience significative" ou "Lead" pour un profil Junior), vous pouvez ajuster la sensibilité du filtrage directement dans le fichier transform/dbt_project.yml.
+
+Modifiez les valeurs dans la section vars :
+
+- Augmentez les pénalités (penalty_senior, penalty_lead, penalty_hidden_seniority) pour durcir le filtrage sur les intitulés et descriptions.
+
+- Ajustez les seuils d'expérience (penalty_mid_experience) pour rejeter plus fermement les offres demandant plus de 2 ans d'expérience.
+
+Une fois les variables modifiées, relancez dbt run pour mettre à jour le classement instantanément.
 ### 4. Exposition & Orchestration
 * **API :** FastAPI containerisée (Docker) déployée sur **AWS App Runner** (Endpoint public sécurisé).
 * **Dashboard :** Interface interactive **Streamlit** hébergée sur **Streamlit Community Cloud** (Gratuit à vie), consommant les données via l'API.
