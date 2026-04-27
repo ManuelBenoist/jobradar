@@ -38,27 +38,45 @@ scoring_blocks AS (
     SELECT
         job_id,
         -- Bloc Expérience & Veto
-        CASE WHEN is_junior OR regexp_like(l_title, 'junior|débutant') THEN {{ var('bonus_junior_flag') }} ELSE 0 END as score_junior,
-        CASE 
-            WHEN regexp_like(l_title, 'directeur|principal') THEN -100
-            WHEN regexp_like(l_title, 'lead') THEN {{ var('penalty_lead') }}
-            WHEN regexp_like(l_title, 'senior|expert|confirmé|experimenté') THEN {{ var('penalty_senior') }}
-            WHEN regexp_like(l_desc, 'expérience significative|solide expérience|expérience confirmée') THEN {{ var('penalty_hidden_seniority') }}
-            ELSE 0 
-        END as score_seniority,
-        CASE WHEN regexp_like(l_title, 'stage|internship|alternance|apprentissage') OR l_desc LIKE '%gratification%' THEN {{ var('penalty_internship') }} ELSE 0 END as score_veto_intern,
+    CASE 
+        WHEN is_junior OR regexp_like(l_title, '\b(junior|débutant)\b') THEN {{ var('bonus_junior_flag') }}
+        ELSE 0 
+    END as score_junior,
+
+    CASE 
+        WHEN regexp_like(l_title, '\b(directeur|principal)\b') THEN -100
+        WHEN regexp_like(l_title, '\b(lead)\b') THEN {{ var('penalty_lead') }}
+        WHEN regexp_like(l_title, '\b(senior|expert|confirmé|experimenté)\b') THEN {{ var('penalty_senior') }}
+        WHEN regexp_like(l_desc, 'expérience significative|solide expérience|expérience confirmée|plusieurs années d''expérience') THEN {{ var('penalty_hidden_seniority') }}
+        ELSE 0 
+    END as score_seniority,
+        -- Ajout de \b pour éviter de pénaliser des phrases sur les stagiaires dans une offre CDI
+        CASE WHEN regexp_like(l_title, '\b(stage|internship|alternance|apprentissage)\b') OR (regexp_like(l_desc, '\bgratification\b') AND regexp_like(l_desc, '\bstagiaire\b')) THEN {{ var('penalty_internship') }} ELSE 0 END as score_veto_intern,
         CASE WHEN exp_min_required > 5 THEN {{ var('penalty_high_experience') }} WHEN exp_min_required > 2 THEN {{ var('penalty_mid_experience') }} ELSE 0 END as score_years,
         
-        -- Bloc Éthique & Impact
+        -- Bloc Éthique & Impact (FIX NIJI : Contextualisation de "assurance", "comptable" et "défense")
         CASE 
-            WHEN regexp_like(l_title || l_desc || company_name, 'banque|finance|assurance|mutuelle|comptable|défense') THEN {{ var('penalty_ethics_light') }}
-            WHEN regexp_like(l_title || l_desc, 'armement|missile|defense|militaire') THEN {{ var('penalty_ethics_heavy') }}
+            WHEN regexp_like(LOWER(company_name), '\b(banque|finance|assurance|mutuelle|comptable)\b') THEN {{ var('penalty_ethics_light') }}
+            WHEN (
+                regexp_like(l_title || l_desc, '\b(banque|finance|mutuelle)\b')
+                OR regexp_like(l_desc, '\bcomptable\b') -- \b évite le match dans "grands-comptes"
+                OR (regexp_like(l_desc, '\bassurance\b') AND NOT regexp_like(l_desc, '\bassurance\s+(de|que|d''être|d''avoir)\b')) -- Filtre les tournures de phrases RH
+                OR (regexp_like(l_desc, '\bdéfense\b') AND NOT regexp_like(l_desc, '(quartier|paris|situé à|siège à)\s+la\s+défense'))
+            ) THEN {{ var('penalty_ethics_light') }}
+            WHEN regexp_like(l_title || l_desc, '\b(armement|missile|defense|militaire)\b') THEN {{ var('penalty_ethics_heavy') }}
             ELSE 5 
         END as score_ethics,
+
         CASE WHEN regexp_like(l_desc, 'b corp|b-corp|société à mission|économie sociale') THEN {{ var('bonus_ethics') }} WHEN regexp_like(l_desc, 'décarbonation|écologie|climat') THEN 15 ELSE 0 END as score_impact,
         
         -- Bloc Culture & Status
-        CASE WHEN regexp_like(l_desc, 'budget formation|mentorat|pairing|pair programming') THEN {{ var('bonus_training_mentorship') }} ELSE 0 END as score_training,
+        CASE 
+            WHEN (
+                regexp_like(l_desc, 'budget formation|mentorat|pairing|pair programming')
+                -- On exclut si c'est une mission pour le candidat (coacher/encadrer)
+                AND NOT regexp_like(l_desc, '(encadrer|coacher|former|management|pilotage|accompagnement d[ee]s?)\s+juniors?')
+            ) THEN {{ var('bonus_training_mentorship') }}
+            ELSE 0 END as score_training,
         CASE WHEN regexp_like(l_desc, 'open source|contribution|contributeur') THEN {{ var('bonus_open_source') }} ELSE 0 END as score_os,
         CASE WHEN l_desc LIKE '%technicien%' THEN {{ var('penalty_technician') }} ELSE 0 END as score_status,
         
@@ -98,9 +116,9 @@ labels_extraction AS (
         job_id,
         -- Points Positifs
         ARRAY_JOIN(FILTER(ARRAY[
-            CASE WHEN p_exp_bonus > 0 THEN '🌱 Junior Friendly' END,
+            CASE WHEN p_exp_bonus > 0 AND p_exp_penalty >= 0 THEN '🌱 Junior Friendly' END,
             CASE WHEN p_impact_positive > 0 THEN '🌍 Impact Positif' END,
-            CASE WHEN p_culture_training > 0 THEN '🎓 Mentorat/Formation' END,
+            CASE WHEN p_culture_training > 0 AND p_exp_penalty >= 0 THEN '🎓 Mentorat/Formation' END,
             CASE WHEN p_culture_os > 0 THEN '💻 Open Source' END,
             CASE WHEN p_remote > 0 THEN '🏠 Télétravail' END,
             CASE WHEN p_tech_skills > 40 THEN '🚀 Stack de pointe' END
