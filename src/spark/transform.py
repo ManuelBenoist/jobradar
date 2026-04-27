@@ -141,6 +141,30 @@ def apply_silver_logic(df):
         F.trim(F.regexp_replace(F.col("location"), r"\(?[0-9]{2,5}\)?|-", "")),
     )
 
+    # ---- EXTRACTION DE L'EXPÉRIENCE ----
+    # On cherche un chiffre suivi de 'ans' MAIS précédé ou suivi par des mots liés à l'expérience
+    # Exemple : "3 ans d'expérience", "expérience de 2 ans", "pendant 5 ans"
+    years_regex = r"(\d+)\s*(?:ans?|ann[ée]es?)(?:\s*d['\s]exp[ée]rience|\s*de\s*pratique|\s*minimum)?"
+    months_regex = r"(\d+)\s*mois"
+
+    # Extraction des années
+    df = df.withColumn("ext_years", F.regexp_extract(F.lower(F.col("description_clean")), years_regex, 1).cast("float"))
+    
+    # Extraction des mois (qu'on convertit en fraction d'année)
+    df = df.withColumn("ext_months", F.regexp_extract(F.lower(F.col("description_clean")), months_regex, 1).cast("float") / 12.0)
+
+    # Priorité : si on trouve des années, on prend, sinon on regarde les mois
+    df = df.withColumn("exp_min_required", F.coalesce(F.col("ext_years"), F.col("ext_months")))
+
+    # Sécurité : On plafonne à 15 ans (pour éviter d'extraire des numéros de rue ou de diplôme par erreur)
+    df = df.withColumn(
+        "exp_min_required", 
+        F.when(F.col("exp_min_required") <= 15, F.col("exp_min_required")).otherwise(None)
+    )
+    
+    # Nettoyage des colonnes de calcul
+    df = df.drop("ext_years", "ext_months")
+
     # 3. EXTRACTION DES SKILLS
     tech_map = {
         # Langages
@@ -292,6 +316,7 @@ def run_pipeline():
         "source_name",
         "extracted_skills",
         "salary_min_numeric",
+        "exp_min_required",
         "is_junior",
         "is_senior",
         "is_red_flag",
@@ -337,3 +362,4 @@ def run_pipeline():
 
 if __name__ == "__main__":
     run_pipeline()
+
