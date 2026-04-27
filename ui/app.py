@@ -94,6 +94,12 @@ with tab_radar:
         df["matching_score"] = (
             pd.to_numeric(df["matching_score"], errors="coerce").fillna(0).astype(int)
         )
+        df["semantic_score"] = (
+            pd.to_numeric(df["semantic_score"], errors="coerce").fillna(0).astype(int)
+        )
+        df["rules_score"] = (
+            pd.to_numeric(df["rules_score"], errors="coerce").fillna(0).astype(int)
+        )
         df["salary_min"] = (
             pd.to_numeric(df["salary_min"], errors="coerce").fillna(0).astype(int)
         )
@@ -175,6 +181,20 @@ with tab_radar:
                     help="Vert: >85% | Jaune: >60% | Rouge: <60%",
                     width="small",
                 ),
+                "semantic_score": st.column_config.ProgressColumn(
+                    "🤖 Score IA",
+                    help="Similarité sémantique (Vecteurs NLP)",
+                    format="%d",
+                    min_value=0,
+                    max_value=100,
+                ),
+                "rules_score": st.column_config.ProgressColumn(
+                    "📋 Score Règles",
+                    help="Respect strict des critères métier",
+                    format="%d",
+                    min_value=0,
+                    max_value=100,
+                ),
                 "published_at": st.column_config.DatetimeColumn(
                     "Publié le", format="D MMM, HH:mm"
                 ),
@@ -195,6 +215,8 @@ with tab_radar:
             },
             column_order=(
                 "matching_visual",
+                "semantic_score",
+                "rules_score",
                 "published_at",  # Priorité à la date de publication
                 "title",
                 "company_name",

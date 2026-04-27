@@ -19,7 +19,7 @@ vars:
   base_score: 20
   
   # Expérience & Statut
-  bonus_junior_flag: 25
+  bonus_junior_flag: 30
   bonus_junior_title: 15
   penalty_senior: -40       # On tape un peu plus fort sur le Senior
   penalty_lead: -50     

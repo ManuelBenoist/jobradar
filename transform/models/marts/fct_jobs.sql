@@ -37,7 +37,7 @@ vector_math AS (
 pillars AS (
     SELECT
         job_id,
-        -- 1. Bonus Junior (Inchangé)
+        -- 1. Bonus Junior
         (CASE 
             WHEN is_junior = true THEN {{ var('bonus_junior_flag') }} 
             WHEN LOWER(title) LIKE '%junior%' OR LOWER(title) LIKE '%débutant%' THEN {{ var('bonus_junior_title') }} 
