@@ -183,20 +183,14 @@ with tab_radar:
                     help="Vert: >85% | Jaune: >60% | Rouge: <60%",
                     width="small",
                 ),
-                "semantic_score": st.column_config.ProgressColumn(
+                "semantic_score": st.column_config.TextColumn(
                     "🤖 Score IA",
                     help="Similarité sémantique (Vecteurs NLP)",
-                    format="%d",
-                    min_value=0,
-                    max_value=100,
                     width="small",
                 ),
-                "rules_score": st.column_config.ProgressColumn(
+                "rules_score": st.column_config.TextColumn(
                     "📋 Score Règles",
                     help="Respect strict des critères métier",
-                    format="%d",
-                    min_value=0,
-                    max_value=100,
                     width="small",
                 ),
                 "published_at": st.column_config.DatetimeColumn(
