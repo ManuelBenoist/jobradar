@@ -1,14 +1,12 @@
-import os
 import logging
+import os
+
 import boto3
 import pandas as pd
-from datetime import datetime
-from typing import Optional, List, Any
-
-from pyspark.sql import SparkSession, Window, DataFrame
+from dotenv import load_dotenv
+from pyspark.sql import DataFrame, SparkSession, Window
 from pyspark.sql import functions as F
 from pyspark.sql.functions import pandas_udf
-from dotenv import load_dotenv
 
 # --- CONFIGURATION INITIALE ---
 load_dotenv(override=True)

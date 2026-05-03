@@ -1,10 +1,11 @@
 import json
 import logging
 import os
-import requests
-import boto3
 from datetime import datetime
-from typing import Dict, Any
+from typing import Any, Dict
+
+import boto3
+import requests
 
 # Configuration du logging
 logger = logging.getLogger()

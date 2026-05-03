@@ -1,8 +1,9 @@
-import os
 import logging
+import os
+from typing import List
+
 import pandas as pd
 from sentence_transformers import SentenceTransformer
-from typing import List
 
 # Configuration du logging pour une visibilité claire en console
 logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")

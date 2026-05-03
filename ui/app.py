@@ -1,9 +1,9 @@
-import streamlit as st
-import requests
-import pandas as pd
-import logging
 from datetime import datetime, timedelta
-from typing import Optional, Dict, Any
+from typing import Any, Dict, Optional
+
+import pandas as pd
+import requests
+import streamlit as st
 
 # --- CONFIGURATION DE LA PAGE ---
 st.set_page_config(

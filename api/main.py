@@ -1,11 +1,12 @@
-import os
 import logging
-from fastapi import FastAPI, HTTPException, Header
+import os
+
+from dotenv import load_dotenv
+from fastapi import FastAPI, Header, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from mangum import Mangum
 from pyathena import connect
 from pyathena.cursor import DictCursor
-from dotenv import load_dotenv
-from mangum import Mangum
 
 # Chargement des variables d'environnement (Utile pour le développement local)
 load_dotenv()
@@ -103,7 +104,7 @@ def get_jobs(limit: int = 200, x_api_key: str = Header(None)):
         raise HTTPException(
             status_code=500,
             detail="Une erreur est survenue lors de la récupération des données.",
-        )
+        ) from e
 
 
 # --- ADAPTATEUR MANGUM ---
