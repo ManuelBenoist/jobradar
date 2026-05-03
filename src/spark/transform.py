@@ -14,7 +14,9 @@ from dotenv import load_dotenv
 load_dotenv(override=True)
 
 # Configuration du logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(
+    level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s"
+)
 logger = logging.getLogger("JobRadar_Spark")
 
 # Paramètres S3 (Silver Layer)
@@ -23,6 +25,7 @@ SILVER_PATH = "s3a://jobradar-processed-manuel-cloud/silver_jobs"
 
 # Cache pour le modèle NLP (Singleton pattern pour limiter l'empreinte mémoire)
 model_cache = None
+
 
 def create_spark_session() -> SparkSession:
     """
@@ -47,13 +50,16 @@ def create_spark_session() -> SparkSession:
         .getOrCreate()
     )
 
+
 # --- ÉTAPE 1 : EXTRACTION & STAGING (BRONZE) ---
+
 
 def stage_adzuna(spark: SparkSession) -> DataFrame:
     """Extraction et normalisation des données sources Adzuna."""
     logger.info("📥 Staging : Adzuna")
     return (
-        spark.read.option("multiLine", "true").option("recursiveFileLookup", "true")
+        spark.read.option("multiLine", "true")
+        .option("recursiveFileLookup", "true")
         .json(f"{RAW_PATH}/adzuna/")
         .select(F.explode("results").alias("job"))
         .select("job.*")
@@ -70,18 +76,22 @@ def stage_adzuna(spark: SparkSession) -> DataFrame:
         )
     )
 
+
 def stage_france_travail(spark: SparkSession) -> DataFrame:
     """Extraction et normalisation des données sources France Travail."""
     logger.info("📥 Staging : France Travail")
     return (
-        spark.read.option("multiLine", "true").option("recursiveFileLookup", "true")
+        spark.read.option("multiLine", "true")
+        .option("recursiveFileLookup", "true")
         .json(f"{RAW_PATH}/france_travail/")
         .select(F.explode("results").alias("job"))
         .select("job.*")
         .select(
             F.col("id").cast("string").alias("job_id"),
             F.col("intitule").alias("title"),
-            F.coalesce(F.col("entreprise.nom"), F.lit("Non renseigné")).alias("company_name"),
+            F.coalesce(F.col("entreprise.nom"), F.lit("Non renseigné")).alias(
+                "company_name"
+            ),
             F.col("description"),
             F.col("lieuTravail.libelle").alias("location"),
             F.to_json(F.col("salaire")).alias("salary_info"),
@@ -91,11 +101,13 @@ def stage_france_travail(spark: SparkSession) -> DataFrame:
         )
     )
 
+
 def stage_jsearch(spark: SparkSession) -> DataFrame:
     """Extraction et normalisation des données sources JSearch."""
     logger.info("📥 Staging : JSearch")
     return (
-        spark.read.option("multiLine", "true").option("recursiveFileLookup", "true")
+        spark.read.option("multiLine", "true")
+        .option("recursiveFileLookup", "true")
         .json(f"{RAW_PATH}/jsearch/")
         .select(F.explode("results").alias("job"))
         .select("job.*")
@@ -104,7 +116,9 @@ def stage_jsearch(spark: SparkSession) -> DataFrame:
             F.col("job_title").alias("title"),
             F.col("employer_name").alias("company_name"),
             F.col("job_description").alias("description"),
-            F.concat_ws(", ", F.col("job_city"), F.col("job_country")).alias("location"),
+            F.concat_ws(", ", F.col("job_city"), F.col("job_country")).alias(
+                "location"
+            ),
             F.lit(None).cast("string").alias("salary_info"),
             F.col("job_posted_at_datetime_utc").alias("created_at"),
             F.col("job_apply_link").alias("url"),
@@ -112,11 +126,13 @@ def stage_jsearch(spark: SparkSession) -> DataFrame:
         )
     )
 
+
 def stage_jooble(spark: SparkSession) -> DataFrame:
     """Extraction et normalisation des données sources Jooble."""
     logger.info("📥 Staging : Jooble")
     return (
-        spark.read.option("multiLine", "true").option("recursiveFileLookup", "true")
+        spark.read.option("multiLine", "true")
+        .option("recursiveFileLookup", "true")
         .json(f"{RAW_PATH}/jooble/")
         .select(F.explode("results").alias("job"))
         .select("job.*")
@@ -133,7 +149,9 @@ def stage_jooble(spark: SparkSession) -> DataFrame:
         )
     )
 
+
 # --- ÉTAPE 2 : LOGIQUE MÉTIER & ENRICHISSEMENT (SILVER) ---
+
 
 def apply_silver_logic(df: DataFrame) -> DataFrame:
     """
@@ -146,104 +164,232 @@ def apply_silver_logic(df: DataFrame) -> DataFrame:
         global model_cache
         import torch
         from sentence_transformers import SentenceTransformer
+
         torch.set_num_threads(1)
         if model_cache is None:
             model_cache = SentenceTransformer("all-MiniLM-L6-v2", device="cpu")
         embeddings = model_cache.encode(texts.tolist(), show_progress_bar=False)
         return pd.Series(embeddings.tolist())
 
-    logger.info("🧹 Exécution de la logique Silver (Nettoyage & Feature Engineering)...")
+    logger.info(
+        "🧹 Exécution de la logique Silver (Nettoyage & Feature Engineering)..."
+    )
 
     # 1. Normalisation temporelle et nettoyage HTML
     df = df.withColumn("published_at", F.to_timestamp(F.col("created_at")))
-    df = df.withColumn("published_at", F.coalesce(F.col("published_at"), F.current_timestamp()))
-    
-    df = df.withColumn("description_clean", F.regexp_replace(F.col("description"), "<[^>]*>", " "))
-    df = df.withColumn("description_clean", F.regexp_replace(F.col("description_clean"), r"[\n\r\t\xa0]", " "))
+    df = df.withColumn(
+        "published_at", F.coalesce(F.col("published_at"), F.current_timestamp())
+    )
+
+    df = df.withColumn(
+        "description_clean", F.regexp_replace(F.col("description"), "<[^>]*>", " ")
+    )
+    df = df.withColumn(
+        "description_clean",
+        F.regexp_replace(F.col("description_clean"), r"[\n\r\t\xa0]", " "),
+    )
 
     # 2. Préparation du texte pour la recherche et vectorisation
-    df = df.withColumn("search_text", F.lower(F.concat_ws(" ", F.col("title"), F.col("description_clean"))))
-    df = df.withColumn("location_clean", F.trim(F.regexp_replace(F.col("location"), r"\(?[0-9]{2,5}\)?|-", "")))
+    df = df.withColumn(
+        "search_text",
+        F.lower(F.concat_ws(" ", F.col("title"), F.col("description_clean"))),
+    )
+    df = df.withColumn(
+        "location_clean",
+        F.trim(F.regexp_replace(F.col("location"), r"\(?[0-9]{2,5}\)?|-", "")),
+    )
 
     # 3. Extraction de l'expérience (Regex multiniveaux)
     years_regex = r"(\d+)\s*(?:ans?|ann[ée]es?)(?:\s*d['\s]exp[ée]rience|\s*de\s*pratique|\s*minimum)?"
     months_regex = r"(\d+)\s*mois"
 
-    df = df.withColumn("ext_years", F.regexp_extract(F.lower(F.col("description_clean")), years_regex, 1).cast("float"))
-    df = df.withColumn("ext_months", F.regexp_extract(F.lower(F.col("description_clean")), months_regex, 1).cast("float") / 12.0)
-    df = df.withColumn("exp_min_required", F.coalesce(F.col("ext_years"), F.col("ext_months")))
-    
+    df = df.withColumn(
+        "ext_years",
+        F.regexp_extract(F.lower(F.col("description_clean")), years_regex, 1).cast(
+            "float"
+        ),
+    )
+    df = df.withColumn(
+        "ext_months",
+        F.regexp_extract(F.lower(F.col("description_clean")), months_regex, 1).cast(
+            "float"
+        )
+        / 12.0,
+    )
+    df = df.withColumn(
+        "exp_min_required", F.coalesce(F.col("ext_years"), F.col("ext_months"))
+    )
+
     # Validation du range d'expérience
-    df = df.withColumn("exp_min_required", F.when(F.col("exp_min_required") <= 15, F.col("exp_min_required")).otherwise(None))
+    df = df.withColumn(
+        "exp_min_required",
+        F.when(F.col("exp_min_required") <= 15, F.col("exp_min_required")).otherwise(
+            None
+        ),
+    )
     df = df.drop("ext_years", "ext_months")
 
     # 4. Extraction des Hard Skills (Mapping Dictionnaire)
     tech_map = {
-        "python": r"\bpython\b", "sql": r"\bsql\b", "pyspark": r"\bpyspark\b", "scala": r"\bscala\b",
-        "spark": r"\bspark\b", "aws": r"\baws\b|amazon\s?web\s?services", "S3": r"\bs3\b|amazon\s?s3",
-        "Lambda": r"\blambda\b", "ECR": r"\becr\b", "Athena": r"\bathena\b", "dbt": r"\bdbt\b",
-        "snowflake": r"\bsnowflake\b", "airflow": r"\bairflow\b", "pandas": r"\bpandas\b",
-        "streamlit": r"\bstreamlit\b", "fastapi": r"\bfastapi|fast\s?api\b", "git": r"\bgit\b",
-        "github_actions": r"github\s?actions", "cicd": r"ci/cd|continuous\s?integration|continuous\s?delivery",
-        "docker": r"\bdocker\b", "kubernetes": r"kubernetes|\bk8s\b", "terraform": r"\bterraform\b",
+        "python": r"\bpython\b",
+        "sql": r"\bsql\b",
+        "pyspark": r"\bpyspark\b",
+        "scala": r"\bscala\b",
+        "spark": r"\bspark\b",
+        "aws": r"\baws\b|amazon\s?web\s?services",
+        "S3": r"\bs3\b|amazon\s?s3",
+        "Lambda": r"\blambda\b",
+        "ECR": r"\becr\b",
+        "Athena": r"\bathena\b",
+        "dbt": r"\bdbt\b",
+        "snowflake": r"\bsnowflake\b",
+        "airflow": r"\bairflow\b",
+        "pandas": r"\bpandas\b",
+        "streamlit": r"\bstreamlit\b",
+        "fastapi": r"\bfastapi|fast\s?api\b",
+        "git": r"\bgit\b",
+        "github_actions": r"github\s?actions",
+        "cicd": r"ci/cd|continuous\s?integration|continuous\s?delivery",
+        "docker": r"\bdocker\b",
+        "kubernetes": r"kubernetes|\bk8s\b",
+        "terraform": r"\bterraform\b",
         "architecture_medaillon": r"architecture\s?m[ée]daillon|medallion\s?architecture",
-        "etl": r"\betl\b|extract\s?transform\s?load", "elt": r"\belt\b|extract\s?load\s?transform",
+        "etl": r"\betl\b|extract\s?transform\s?load",
+        "elt": r"\belt\b|extract\s?load\s?transform",
     }
 
-    tag_exprs = [F.when(F.col("search_text").rlike(regex), F.lit(tech)).otherwise(F.lit(None)) for tech, regex in tech_map.items()]
+    tag_exprs = [
+        F.when(F.col("search_text").rlike(regex), F.lit(tech)).otherwise(F.lit(None))
+        for tech, regex in tech_map.items()
+    ]
     df = df.withColumn("raw_skills_array", F.array(*tag_exprs))
-    df = df.withColumn("extracted_skills", F.array_distinct(F.filter(F.col("raw_skills_array"), lambda x: x.isNotNull())))
+    df = df.withColumn(
+        "extracted_skills",
+        F.array_distinct(F.filter(F.col("raw_skills_array"), lambda x: x.isNotNull())),
+    )
     df = df.drop("raw_skills_array")
 
     # 5. Extraction du salaire (Optimisation numérique)
     salary_regex = r"(\d{2}\s?\d{3}|\d{2}k|\d{5})"
-    df = df.withColumn("salary_search", F.concat_ws(" | ", F.col("salary_info"), F.col("description_clean")))
-    df = df.withColumn("salary_raw", F.regexp_extract(F.col("salary_search"), salary_regex, 1))
+    df = df.withColumn(
+        "salary_search",
+        F.concat_ws(" | ", F.col("salary_info"), F.col("description_clean")),
+    )
+    df = df.withColumn(
+        "salary_raw", F.regexp_extract(F.col("salary_search"), salary_regex, 1)
+    )
     df = df.withColumn("salary_tmp", F.regexp_replace(F.col("salary_raw"), r"\s", ""))
-    df = df.withColumn("salary_min_numeric", 
-        F.when(F.col("salary_tmp").contains("k"), F.regexp_replace(F.col("salary_tmp"), "k", "").cast("int") * 1000)
-        .otherwise(F.col("salary_tmp").cast("int")))
-    
+    df = df.withColumn(
+        "salary_min_numeric",
+        F.when(
+            F.col("salary_tmp").contains("k"),
+            F.regexp_replace(F.col("salary_tmp"), "k", "").cast("int") * 1000,
+        ).otherwise(F.col("salary_tmp").cast("int")),
+    )
+
     # Filtre sur les salaires réalistes (Data)
-    df = df.withColumn("salary_min_numeric", F.when((F.col("salary_min_numeric") >= 25000) & (F.col("salary_min_numeric") <= 180000), F.col("salary_min_numeric")).otherwise(None))
+    df = df.withColumn(
+        "salary_min_numeric",
+        F.when(
+            (F.col("salary_min_numeric") >= 25000)
+            & (F.col("salary_min_numeric") <= 180000),
+            F.col("salary_min_numeric"),
+        ).otherwise(None),
+    )
 
     # 6. Classification métier & Ethique
-    df = df.withColumn("is_junior", F.col("search_text").rlike(r"junior|débutant|jeune diplômé"))
-    df = df.withColumn("is_senior", F.col("search_text").rlike(r"senior|expert|lead|confirmé"))
-    df = df.withColumn("is_red_flag", F.col("search_text").rlike(r"alternance|stage|support|technicien|helpdesk"))
-    
+    df = df.withColumn(
+        "is_junior", F.col("search_text").rlike(r"junior|débutant|jeune diplômé")
+    )
+    df = df.withColumn(
+        "is_senior", F.col("search_text").rlike(r"senior|expert|lead|confirmé")
+    )
+    df = df.withColumn(
+        "is_red_flag",
+        F.col("search_text").rlike(r"alternance|stage|support|technicien|helpdesk"),
+    )
+
     ethical_regex = r"impact|green|environnement|transition|coopérative|scic|scop|ess"
-    df = df.withColumn("is_ethical", F.col("search_text").rlike(ethical_regex) | F.lower(F.col("company_name")).rlike(ethical_regex))
-    df = df.withColumn("is_remote", F.col("search_text").rlike(r"télétravail|remote|home\s?office|full\s?remote|distanciel"))
+    df = df.withColumn(
+        "is_ethical",
+        F.col("search_text").rlike(ethical_regex)
+        | F.lower(F.col("company_name")).rlike(ethical_regex),
+    )
+    df = df.withColumn(
+        "is_remote",
+        F.col("search_text").rlike(
+            r"télétravail|remote|home\s?office|full\s?remote|distanciel"
+        ),
+    )
 
     # 7. Déduplication par empreinte (Window Function)
-    df = df.withColumn("dedup_id", F.sha2(F.concat_ws("||", F.lower(F.col("title")), F.lower(F.col("company_name")), F.col("location_clean")), 256))
+    df = df.withColumn(
+        "dedup_id",
+        F.sha2(
+            F.concat_ws(
+                "||",
+                F.lower(F.col("title")),
+                F.lower(F.col("company_name")),
+                F.col("location_clean"),
+            ),
+            256,
+        ),
+    )
     window_spec = Window.partitionBy("dedup_id").orderBy(F.col("published_at").desc())
 
     # 8. Vectorisation NLP finale
-    df = df.withColumn("combined_text_for_vector", F.substring(F.concat_ws(" ", F.col("title"), F.col("description")), 1, 1000))
+    df = df.withColumn(
+        "combined_text_for_vector",
+        F.substring(F.concat_ws(" ", F.col("title"), F.col("description")), 1, 1000),
+    )
     logger.info("🧠 Inférence NLP : Calcul des embeddings sémantiques...")
-    df = df.withColumn("description_vector", vectorize_text_udf(F.col("combined_text_for_vector")))
+    df = df.withColumn(
+        "description_vector", vectorize_text_udf(F.col("combined_text_for_vector"))
+    )
     df = df.drop("combined_text_for_vector")
 
     return (
         df.withColumn("rn", F.row_number().over(window_spec))
         .filter(F.col("rn") == 1)
         .withColumn("ingestion_date", F.current_date())
-        .drop("rn", "search_text", "salary_search", "salary_raw", "salary_tmp", "description_clean", "dedup_id")
+        .drop(
+            "rn",
+            "search_text",
+            "salary_search",
+            "salary_raw",
+            "salary_tmp",
+            "description_clean",
+            "dedup_id",
+        )
     )
 
+
 # --- ÉTAPE 3 : MAIN ORCHESTRATION ---
+
 
 def run_pipeline() -> None:
     """Exécution complète du pipeline de transformation Silver."""
     spark = create_spark_session()
 
     silver_columns = [
-        "job_id", "title", "company_name", "location_clean", "description", "url",
-        "published_at", "source_name", "extracted_skills", "salary_min_numeric",
-        "exp_min_required", "is_junior", "is_senior", "is_red_flag", "is_ethical",
-        "is_remote", "description_vector", "ingestion_date",
+        "job_id",
+        "title",
+        "company_name",
+        "location_clean",
+        "description",
+        "url",
+        "published_at",
+        "source_name",
+        "extracted_skills",
+        "salary_min_numeric",
+        "exp_min_required",
+        "is_junior",
+        "is_senior",
+        "is_red_flag",
+        "is_ethical",
+        "is_remote",
+        "description_vector",
+        "ingestion_date",
     ]
 
     try:
@@ -253,15 +399,21 @@ def run_pipeline() -> None:
         df_js = stage_jsearch(spark)
         df_jb = stage_jooble(spark)
 
-        logger.info(f"✅ Staging terminé : {df_adz.count()} Adzuna, {df_ft.count()} FT, {df_js.count()} JSearch, {df_jb.count()} Jooble.")
-        
+        logger.info(
+            f"✅ Staging terminé : {df_adz.count()} Adzuna, {df_ft.count()} FT, {df_js.count()} JSearch, {df_jb.count()} Jooble."
+        )
+
         # Union et Transformation globale
         raw_df = df_adz.unionByName(df_ft).unionByName(df_js).unionByName(df_jb)
         df_silver = apply_silver_logic(raw_df)
 
         # Écriture partitionnée au format Parquet
-        logger.info(f"🚀 Écriture de {df_silver.count()} offres uniques vers la couche Silver...")
-        df_silver.select(silver_columns).write.mode("overwrite").partitionBy("ingestion_date").parquet(SILVER_PATH)
+        logger.info(
+            f"🚀 Écriture de {df_silver.count()} offres uniques vers la couche Silver..."
+        )
+        df_silver.select(silver_columns).write.mode("overwrite").partitionBy(
+            "ingestion_date"
+        ).parquet(SILVER_PATH)
 
         # Mise à jour du catalogue Athena
         logger.info("🔧 Synchronisation du catalogue Athena (MSCK REPAIR)...")
@@ -269,13 +421,16 @@ def run_pipeline() -> None:
         athena.start_query_execution(
             QueryString="MSCK REPAIR TABLE jobradar_db.silver_jobs",
             QueryExecutionContext={"Database": "jobradar_db"},
-            ResultConfiguration={"OutputLocation": "s3://jobradar-athena-results-manuel-cloud/athena_temp/"},
+            ResultConfiguration={
+                "OutputLocation": "s3://jobradar-athena-results-manuel-cloud/athena_temp/"
+            },
         )
         logger.info("✅ Pipeline Silver terminé avec succès !")
 
     except Exception as e:
         logger.error(f"❌ Échec critique du pipeline : {str(e)}")
         raise
+
 
 if __name__ == "__main__":
     run_pipeline()

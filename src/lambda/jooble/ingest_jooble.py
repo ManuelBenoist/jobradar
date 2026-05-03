@@ -13,10 +13,11 @@ logger.setLevel(logging.INFO)
 # Initialisation du client S3 (optimisation du Cold Start)
 s3_client = boto3.client("s3")
 
+
 def fetch_jooble_jobs(keyword: str, where: str, api_key: str) -> Dict[str, Any]:
     """
     Récupère les offres d'emploi depuis l'API Jooble via une requête POST.
-    
+
     Args:
         keyword (str): Mots-clés de recherche.
         where (str): Localisation (ex: Nantes).
@@ -28,12 +29,9 @@ def fetch_jooble_jobs(keyword: str, where: str, api_key: str) -> Dict[str, Any]:
     # L'API Jooble intègre la clé directement dans l'URL
     endpoint = f"https://fr.jooble.org/api/{api_key}"
     headers = {"Content-Type": "application/json"}
-    
+
     # Corps de la requête
-    payload = {
-        "keywords": keyword, 
-        "location": where
-    }
+    payload = {"keywords": keyword, "location": where}
 
     logger.info(f"Requête Jooble | Keyword: {keyword} | Location: {where}")
 
@@ -50,11 +48,12 @@ def fetch_jooble_jobs(keyword: str, where: str, api_key: str) -> Dict[str, Any]:
             "results": results,
             "keyword": keyword,
             "source": "jooble",
-            "ingested_at": datetime.now().isoformat()
+            "ingested_at": datetime.now().isoformat(),
         }
     except requests.exceptions.RequestException as e:
         logger.error(f"Erreur lors de l'appel API Jooble : {str(e)}")
         raise
+
 
 def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     """
@@ -80,7 +79,7 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         safe_keyword = keyword.replace(" ", "_").lower()
         date_path = now.strftime("%Y/%m/%d")
         timestamp = now.strftime("%H%M%S")
-        
+
         # Chemin partitionné pour optimiser les requêtes Athena futures
         filename = f"jooble/{date_path}/{safe_keyword}_{timestamp}.json"
 
@@ -89,18 +88,22 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             Bucket=bucket_name,
             Key=filename,
             Body=json.dumps(data, ensure_ascii=False),
-            ContentType='application/json'
+            ContentType="application/json",
         )
 
-        logger.info(f"✅ {len(data['results'])} offres Jooble sauvegardées dans {filename}")
+        logger.info(
+            f"✅ {len(data['results'])} offres Jooble sauvegardées dans {filename}"
+        )
 
         return {
             "statusCode": 200,
-            "body": json.dumps({
-                "message": "Jooble ingestion successful",
-                "count": len(data['results']),
-                "file": filename
-            })
+            "body": json.dumps(
+                {
+                    "message": "Jooble ingestion successful",
+                    "count": len(data["results"]),
+                    "file": filename,
+                }
+            ),
         }
 
     except Exception as e:

@@ -27,6 +27,7 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
+
 # --- CHARGEMENT DES DONNÉES (API) ---
 @st.cache_data(ttl=3600)
 def fetch_job_data(limit: int) -> Optional[Dict[str, Any]]:
@@ -36,10 +37,10 @@ def fetch_job_data(limit: int) -> Optional[Dict[str, Any]]:
     """
     API_URL = st.secrets["API_URL"]
     API_KEY = st.secrets["INTERNAL_API_KEY"]
-    
+
     headers = {"X-API-Key": API_KEY}
     params = {"limit": limit}
-    
+
     try:
         response = requests.get(API_URL, headers=headers, params=params, timeout=15)
         response.raise_for_status()
@@ -47,6 +48,7 @@ def fetch_job_data(limit: int) -> Optional[Dict[str, Any]]:
     except Exception as e:
         st.error(f"⚠️ Erreur de connexion à l'API : {str(e)}")
         return None
+
 
 # --- GESTION DE LA SESSION & CACHE INTELLIGENT ---
 if "max_limit_fetched" not in st.session_state:
@@ -56,7 +58,7 @@ if "max_limit_fetched" not in st.session_state:
 with st.sidebar:
     st.header("⚙️ Configuration")
     job_limit = st.slider("Portée du scan (offres)", 50, 1000, 200, step=50)
-    
+
     if st.button("🔄 Rafraîchir les données"):
         st.cache_data.clear()
         st.session_state.max_limit_fetched = 0
@@ -98,7 +100,9 @@ with tab_radar:
         for col in cols_to_fix:
             df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0).astype(int)
 
-        df["published_at"] = pd.to_datetime(df["published_at"], format="ISO8601", errors="coerce")
+        df["published_at"] = pd.to_datetime(
+            df["published_at"], format="ISO8601", errors="coerce"
+        )
         df["original_url"] = df["original_url"].fillna("")
 
         if "skills" in df.columns:
@@ -106,8 +110,10 @@ with tab_radar:
 
         # Helpers visuels
         def get_score_visual(score):
-            if score >= 80: return f"🟢 {score}%"
-            if score >= 60: return f"🟡 {score}%"
+            if score >= 80:
+                return f"🟢 {score}%"
+            if score >= 60:
+                return f"🟡 {score}%"
             return f"🔴 {score}%"
 
         df["matching_visual"] = df["matching_score"].apply(get_score_visual)
@@ -123,16 +129,22 @@ with tab_radar:
         k1.metric("Offres analysées", len(df))
         k2.metric("Nouveautés (<48h)", f"{new_jobs_count}")
         k3.metric("Matching Moyen", f"{int(df['matching_score'].mean())}%")
-        
+
         valid_salaries = df[df["salary_min"] > 0]["salary_min"]
-        avg_salary = f"{int(valid_salaries.mean()):,} €".replace(",", " ") if not valid_salaries.empty else "N/A"
+        avg_salary = (
+            f"{int(valid_salaries.mean()):,} €".replace(",", " ")
+            if not valid_salaries.empty
+            else "N/A"
+        )
         k4.metric("Salaire Moyen", avg_salary)
 
         st.divider()
 
         # Filtres interactifs
         col_f1, col_f2, col_f3 = st.columns([2, 1, 1])
-        search_query = col_f1.text_input("🔍 Recherche rapide", placeholder="ex: AWS, Spark, Nantes...")
+        search_query = col_f1.text_input(
+            "🔍 Recherche rapide", placeholder="ex: AWS, Spark, Nantes..."
+        )
         min_score = col_f2.slider("Score min.", 0, 100, 30)
         show_only_fresh = col_f3.toggle("✨ Nouveautés uniquement")
 
@@ -141,39 +153,66 @@ with tab_radar:
         if show_only_fresh:
             filtered_df = filtered_df[filtered_df["published_at"] >= limit_date]
         if search_query:
-            mask = filtered_df.apply(lambda row: row.astype(str).str.contains(search_query, case=False).any(), axis=1)
+            mask = filtered_df.apply(
+                lambda row: (
+                    row.astype(str).str.contains(search_query, case=False).any()
+                ),
+                axis=1,
+            )
             filtered_df = filtered_df[mask]
 
         # Affichage du tableau principal
         st.dataframe(
             filtered_df,
             column_config={
-                "matching_visual": st.column_config.TextColumn("Matching", help="Score hybride (IA + Métier)", width="small"),
-                "published_at": st.column_config.DatetimeColumn("Publié", format="D MMM, HH:mm"),
+                "matching_visual": st.column_config.TextColumn(
+                    "Matching", help="Score hybride (IA + Métier)", width="small"
+                ),
+                "published_at": st.column_config.DatetimeColumn(
+                    "Publié", format="D MMM, HH:mm"
+                ),
                 "title": st.column_config.TextColumn("Poste", width="large"),
-                "positive_labels": st.column_config.TextColumn("Points Positifs", width="medium"),
-                "negative_labels": st.column_config.TextColumn("Points Négatifs", width="medium"),
-                "salary_visual": st.column_config.TextColumn("Salaire Min", width="small"),
+                "positive_labels": st.column_config.TextColumn(
+                    "Points Positifs", width="medium"
+                ),
+                "negative_labels": st.column_config.TextColumn(
+                    "Points Négatifs", width="medium"
+                ),
+                "salary_visual": st.column_config.TextColumn(
+                    "Salaire Min", width="small"
+                ),
                 "platform": "Source",
                 "original_url": st.column_config.LinkColumn("Lien", display_text="🔗"),
             },
             column_order=(
-                "published_at", "matching_visual", "title", "positive_labels", 
-                "negative_labels", "company_name", "city", "salary_visual", 
-                "skills", "platform", "original_url"
+                "published_at",
+                "matching_visual",
+                "title",
+                "positive_labels",
+                "negative_labels",
+                "company_name",
+                "city",
+                "salary_visual",
+                "skills",
+                "platform",
+                "original_url",
             ),
             width="stretch",
             hide_index=True,
         )
-        st.caption(f"Dernière synchronisation Cloud : {datetime.now().strftime('%d/%m/%Y à %H:%M')}")
+        st.caption(
+            f"Dernière synchronisation Cloud : {datetime.now().strftime('%d/%m/%Y à %H:%M')}"
+        )
 
     else:
-        st.warning("📡 En attente de données... L'API est peut-être en phase de démarrage.")
+        st.warning(
+            "📡 En attente de données... L'API est peut-être en phase de démarrage."
+        )
 
 # --- ONGLET 🏗️ : ARCHITECTURE & TECH ---
 with tab_tech:
     st.header("Spécifications Techniques")
-    
+
     st.markdown(
         """
         **Pipeline Status :** [![JobRadar CI](https://github.com/ManuelBenoist/jobradar/actions/workflows/main.yml/badge.svg)](https://github.com/ManuelBenoist/jobradar/actions/workflows/main.yml)

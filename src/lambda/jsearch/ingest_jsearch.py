@@ -17,10 +17,11 @@ s3_client = boto3.client("s3")
 JSEARCH_URL = "https://jsearch.p.rapidapi.com/search"
 JSEARCH_HOST = "jsearch.p.rapidapi.com"
 
+
 def fetch_jsearch_jobs(keyword: str, where: str, api_key: str) -> Dict[str, Any]:
     """
     Récupère les offres d'emploi via l'API JSearch (RapidAPI).
-    
+
     Args:
         keyword (str): Mots-clés de recherche.
         where (str): Localisation géographique.
@@ -30,10 +31,7 @@ def fetch_jsearch_jobs(keyword: str, where: str, api_key: str) -> Dict[str, Any]
         Dict[str, Any]: Résultats structurés incluant les offres brutes.
     """
     query = f"{keyword} in {where}"
-    headers = {
-        "X-RapidAPI-Key": api_key,
-        "X-RapidAPI-Host": JSEARCH_HOST
-    }
+    headers = {"X-RapidAPI-Key": api_key, "X-RapidAPI-Host": JSEARCH_HOST}
 
     # Configuration optimisée : on cible les 3 derniers jours pour l'ingestion quotidienne
     params = {
@@ -53,17 +51,18 @@ def fetch_jsearch_jobs(keyword: str, where: str, api_key: str) -> Dict[str, Any]
         payload = response.json()
 
         results = payload.get("data", [])
-        
+
         return {
             "count": len(results),
             "results": results,
             "keyword": keyword,
             "source": "jsearch",
-            "ingested_at": datetime.now().isoformat()
+            "ingested_at": datetime.now().isoformat(),
         }
     except requests.exceptions.RequestException as e:
         logger.error(f"Échec de l'appel JSearch : {str(e)}")
         raise
+
 
 def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     """
@@ -88,7 +87,7 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         safe_keyword = keyword.replace(" ", "_").lower()
         date_path = now.strftime("%Y/%m/%d")
         timestamp = now.strftime("%H%M%S")
-        
+
         filename = f"jsearch/{date_path}/{safe_keyword}_{timestamp}.json"
 
         # 5. Persistance S3 avec métadonnées
@@ -96,18 +95,18 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             Bucket=bucket_name,
             Key=filename,
             Body=json.dumps(data, ensure_ascii=False),
-            ContentType='application/json'
+            ContentType="application/json",
         )
 
-        logger.info(f"✅ Ingestion terminée : {filename} ({len(data['results'])} offres)")
+        logger.info(
+            f"✅ Ingestion terminée : {filename} ({len(data['results'])} offres)"
+        )
 
         return {
             "statusCode": 200,
-            "body": json.dumps({
-                "source": "jsearch",
-                "count": len(data['results']),
-                "file": filename
-            })
+            "body": json.dumps(
+                {"source": "jsearch", "count": len(data["results"]), "file": filename}
+            ),
         }
 
     except Exception as e:

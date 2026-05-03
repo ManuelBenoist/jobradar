@@ -24,7 +24,7 @@ app = FastAPI(
 # Liste des origines autorisées à requêter l'API
 ALLOWED_ORIGINS = [
     "https://jobradar-nantes.streamlit.app/",  # Production (Streamlit Cloud)
-    "http://localhost:8501",                 # Développement local (Streamlit par défaut)
+    "http://localhost:8501",  # Développement local (Streamlit par défaut)
 ]
 
 app.add_middleware(
@@ -40,6 +40,7 @@ REGION = os.getenv("AWS_REGION", "eu-west-3")
 DB = os.getenv("ATHENA_DATABASE", "jobradar_db")
 S3_STAGING = os.getenv("ATHENA_S3_STAGING_DIR")
 
+
 @app.get("/", tags=["Health"])
 def read_root():
     """Point d'entrée principal fournissant les liens vers la documentation."""
@@ -48,10 +49,12 @@ def read_root():
         "endpoints": {"health": "/health", "jobs": "/jobs", "documentation": "/docs"},
     }
 
+
 @app.get("/health", tags=["Health"])
 def health_check():
     """Vérification de l'état de santé du service."""
     return {"status": "healthy", "service": "jobradar-api-serverless"}
+
 
 @app.get("/jobs", tags=["Data"])
 def get_jobs(limit: int = 200, x_api_key: str = Header(None)):
@@ -67,7 +70,9 @@ def get_jobs(limit: int = 200, x_api_key: str = Header(None)):
         )
 
     if not S3_STAGING:
-        raise HTTPException(status_code=500, detail="Configuration S3 Staging manquante.")
+        raise HTTPException(
+            status_code=500, detail="Configuration S3 Staging manquante."
+        )
 
     # Limitation préventive pour éviter les coûts de requête excessifs
     query_limit = min(limit, 1000)
@@ -91,17 +96,15 @@ def get_jobs(limit: int = 200, x_api_key: str = Header(None)):
         cursor.execute(query)
         results = cursor.fetchall()
 
-        return {
-            "total_count": len(results),
-            "database": DB,
-            "jobs": results
-        }
+        return {"total_count": len(results), "database": DB, "jobs": results}
 
     except Exception as e:
         logger.error(f"Erreur lors de la requête Athena : {str(e)}")
         raise HTTPException(
-            status_code=500, detail="Une erreur est survenue lors de la récupération des données."
+            status_code=500,
+            detail="Une erreur est survenue lors de la récupération des données.",
         )
+
 
 # --- ADAPTATEUR MANGUM ---
 # Transforme l'application FastAPI en un handler compatible avec AWS Lambda

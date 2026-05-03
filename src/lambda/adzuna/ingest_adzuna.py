@@ -13,10 +13,13 @@ logger.setLevel(logging.INFO)
 # Initialisation globale du client S3 pour optimiser les performances (Reuse execution context)
 s3_client = boto3.client("s3")
 
-def fetch_adzuna_jobs(what: str, where: str, app_id: str, app_key: str) -> Dict[str, Any]:
+
+def fetch_adzuna_jobs(
+    what: str, where: str, app_id: str, app_key: str
+) -> Dict[str, Any]:
     """
     Récupère les offres d'emploi via l'API Adzuna avec gestion de la pagination.
-    
+
     Args:
         what (str): Mot-clé de recherche (ex: Data Engineer).
         where (str): Localisation géographique.
@@ -29,7 +32,7 @@ def fetch_adzuna_jobs(what: str, where: str, app_id: str, app_key: str) -> Dict[
     current_page = 1
     combined_results = []
     total_count = None
-    
+
     # Limitation préventive pour respecter les quotas d'exécution Lambda
     MAX_PAGES = 3
 
@@ -45,7 +48,7 @@ def fetch_adzuna_jobs(what: str, where: str, app_id: str, app_key: str) -> Dict[
         }
 
         logger.info(f"Requête Adzuna - Page {current_page} - Keyword: {what}")
-        
+
         try:
             response = requests.get(endpoint, params=params, timeout=15)
             response.raise_for_status()
@@ -67,11 +70,12 @@ def fetch_adzuna_jobs(what: str, where: str, app_id: str, app_key: str) -> Dict[
         current_page += 1
 
     return {
-        "count": total_count, 
-        "results": combined_results, 
+        "count": total_count,
+        "results": combined_results,
         "keyword": what,
-        "ingested_at": datetime.now().isoformat()
+        "ingested_at": datetime.now().isoformat(),
     }
+
 
 def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     """
@@ -98,7 +102,7 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         safe_keyword = keyword.replace(" ", "_").lower()
         date_path = now.strftime("%Y/%m/%d")
         timestamp = now.strftime("%H%M%S")
-        
+
         # Format : bronze/adzuna/YYYY/MM/DD/keyword_HHMMSS.json
         filename = f"adzuna/{date_path}/{safe_keyword}_{timestamp}.json"
 
@@ -107,18 +111,22 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             Bucket=bucket_name,
             Key=filename,
             Body=json.dumps(data, ensure_ascii=False),
-            ContentType='application/json'
+            ContentType="application/json",
         )
 
-        logger.info(f"✅ Ingestion réussie : {filename} ({len(data['results'])} offres)")
-        
+        logger.info(
+            f"✅ Ingestion réussie : {filename} ({len(data['results'])} offres)"
+        )
+
         return {
             "statusCode": 200,
-            "body": json.dumps({
-                "message": "Ingestion completed",
-                "file": filename,
-                "count": len(data['results'])
-            })
+            "body": json.dumps(
+                {
+                    "message": "Ingestion completed",
+                    "file": filename,
+                    "count": len(data["results"]),
+                }
+            ),
         }
 
     except Exception as e:

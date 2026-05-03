@@ -5,7 +5,7 @@ from sentence_transformers import SentenceTransformer
 from typing import List
 
 # Configuration du logging pour une visibilité claire en console
-logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
+logging.basicConfig(level=logging.INFO, format="%(levelname)s: %(message)s")
 logger = logging.getLogger(__name__)
 
 # --- CONFIGURATION DU PROFIL CIBLE ---
@@ -21,9 +21,10 @@ Le poste est ouvert en CDI avec un rythme de télétravail flexible (2 à 3 jour
 # Chemin de sortie pour dbt seed (permet d'injecter le vecteur dans l'entrepôt de données)
 OUTPUT_PATH = "transform/seeds/ideal_profile_vector.csv"
 
+
 def generate_ideal_profile_seed() -> None:
     """
-    Génère un embedding vectoriel à partir de la description du profil idéal 
+    Génère un embedding vectoriel à partir de la description du profil idéal
     et le sauvegarde sous forme de fichier CSV pour dbt.
     """
     try:
@@ -57,6 +58,7 @@ def generate_ideal_profile_seed() -> None:
     except Exception as e:
         logger.error(f"❌ Erreur lors de la génération du profil : {str(e)}")
         raise
+
 
 if __name__ == "__main__":
     generate_ideal_profile_seed()
