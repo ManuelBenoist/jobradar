@@ -4,25 +4,36 @@ import os
 import requests
 import boto3
 from datetime import datetime
+from typing import Dict, Any
 
+# Configuration du logging pour AWS CloudWatch
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
-# On initialise le client S3 en dehors du handler pour l'optimisation (Cold Start)
+# Initialisation globale du client S3 pour optimiser les performances (Reuse execution context)
 s3_client = boto3.client("s3")
 
+def fetch_adzuna_jobs(what: str, where: str, app_id: str, app_key: str) -> Dict[str, Any]:
+    """
+    Récupère les offres d'emploi via l'API Adzuna avec gestion de la pagination.
+    
+    Args:
+        what (str): Mot-clé de recherche (ex: Data Engineer).
+        where (str): Localisation géographique.
+        app_id (str): Identifiant de l'application Adzuna.
+        app_key (str): Clé secrète de l'application Adzuna.
 
-def fetch_adzuna_jobs(what: str, where: str, app_id: str, app_key: str) -> dict:
-    """Fetch les offres d'emploi depuis l'API Adzuna en paginant les résultats."""
-
+    Returns:
+        Dict[str, Any]: Dictionnaire contenant le compte total et la liste des résultats.
+    """
     current_page = 1
     combined_results = []
     total_count = None
+    
+    # Limitation préventive pour respecter les quotas d'exécution Lambda
+    MAX_PAGES = 3
 
-    # On limite à 3 pages max dans le cloud pour éviter de surcharger la Lambda
-    max_pages = 3
-
-    while current_page <= max_pages:
+    while current_page <= MAX_PAGES:
         endpoint = f"https://api.adzuna.com/v1/api/jobs/fr/search/{current_page}"
         params = {
             "app_id": app_id,
@@ -33,69 +44,84 @@ def fetch_adzuna_jobs(what: str, where: str, app_id: str, app_key: str) -> dict:
             "results_per_page": 50,
         }
 
-        logger.info(f"Appel Adzuna: Page {current_page} - Mot-clé: {what}")
-        response = requests.get(endpoint, params=params, timeout=15)
-        response.raise_for_status()
+        logger.info(f"Requête Adzuna - Page {current_page} - Keyword: {what}")
+        
+        try:
+            response = requests.get(endpoint, params=params, timeout=15)
+            response.raise_for_status()
+            payload = response.json()
+        except requests.exceptions.RequestException as e:
+            logger.error(f"Échec de l'appel API Adzuna à la page {current_page}: {e}")
+            break
 
-        payload = response.json()
         if total_count is None:
             total_count = payload.get("count", 0)
 
         page_results = payload.get("results", [])
         combined_results.extend(page_results)
 
-        if len(page_results) == 0:
+        # Arrêt si la page est vide ou si on a atteint la fin des résultats
+        if not page_results:
             break
 
         current_page += 1
 
-    return {"count": total_count, "results": combined_results, "keyword": what}
+    return {
+        "count": total_count, 
+        "results": combined_results, 
+        "keyword": what,
+        "ingested_at": datetime.now().isoformat()
+    }
 
-
-# ==========================================
-# LE POINT D'ENTRÉE DE LA LAMBDA
-# ==========================================
-def lambda_handler(event, context):
+def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     """
-    event: C'est ce que EventBridge va envoyer (ex: {"keyword": "Data Engineer"})
-    context: Infos sur la Lambda par AWS
+    Point d'entrée de la fonction Lambda déclenchée par EventBridge.
+    Gère l'extraction Adzuna et le stockage sur S3 (Couche Bronze).
     """
     try:
-        # 1. Récupération des variables d'environnement (Sécurité)
+        # 1. Chargement de la configuration via les variables d'environnement
         bucket_name = os.environ["BUCKET_NAME"]
         app_id = os.environ["ADZUNA_APP_ID"]
         app_key = os.environ["ADZUNA_APP_KEY"]
 
-        # 2. Récupération du mot-clé depuis l'événement déclencheur
-        # Si aucun mot-clé n'est envoyé, on met "Data Engineer" par défaut
+        # 2. Paramétrage de la recherche via l'événement déclencheur
         keyword = event.get("keyword", "Data Engineer")
         where = event.get("where", "Nantes")
 
-        logger.info(f"Démarrage Ingestion Adzuna pour : {keyword}")
+        logger.info(f"Lancement de l'ingestion Adzuna | Keyword: {keyword}")
 
-        # 3. Appel de ta fonction métier
+        # 3. Extraction des données
         data = fetch_adzuna_jobs(keyword, where, app_id, app_key)
 
-        # 4. Nettoyage du nom pour le fichier
+        # 4. Génération du chemin de stockage (Architecture Médaillon - Bronze)
+        now = datetime.now()
         safe_keyword = keyword.replace(" ", "_").lower()
-        date_str = datetime.now().strftime("%Y%m%d_%H%M%S")
+        date_path = now.strftime("%Y/%m/%d")
+        timestamp = now.strftime("%H%M%S")
+        
+        # Format : bronze/adzuna/YYYY/MM/DD/keyword_HHMMSS.json
+        filename = f"adzuna/{date_path}/{safe_keyword}_{timestamp}.json"
 
-        # L'architecture Médaillon dans S3 : raw/adzuna/2026/04/16/data_engineer_1200.json
-        date_path = datetime.now().strftime("%Y/%m/%d")
-        filename = f"adzuna/{date_path}/{safe_keyword}_{date_str}.json"
-
-        # 5. Envoi vers AWS S3
+        # 5. Persistance des données brutes sur S3
         s3_client.put_object(
-            Bucket=bucket_name, Key=filename, Body=json.dumps(data, ensure_ascii=False)
+            Bucket=bucket_name,
+            Key=filename,
+            Body=json.dumps(data, ensure_ascii=False),
+            ContentType='application/json'
         )
 
-        logger.info(f"✅ Fichier sauvegardé dans S3 : {filename}")
+        logger.info(f"✅ Ingestion réussie : {filename} ({len(data['results'])} offres)")
+        
         return {
             "statusCode": 200,
-            "body": f"Ingestion réussie pour {keyword}. {len(data['results'])} offres.",
+            "body": json.dumps({
+                "message": "Ingestion completed",
+                "file": filename,
+                "count": len(data['results'])
+            })
         }
 
     except Exception as e:
-        logger.error(f"❌ Erreur lors de l'ingestion: {str(e)}")
-        # On remonte l'erreur à AWS pour qu'il la marque en rouge dans la console
+        logger.error(f"❌ Erreur critique lors de l'exécution : {str(e)}")
+        # On relance l'exception pour permettre les mécanismes de "Retry" d'AWS
         raise e
