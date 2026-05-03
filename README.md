@@ -1,78 +1,65 @@
-# JobRadar
+# 📡 JobRadar Live
 
-**JobRadar** est une plateforme automatisée de veille et d'analyse du marché de l'emploi Data & DevOps. Le projet implémente un pipeline ELT complet, de l'ingestion multi-sources à la visualisation, en passant par une phase de transformation distribuée et de modélisation SQL.
+**JobRadar** est une plateforme automatisée de veille et d'analyse du marché de l'emploi Data & DevOps. Le projet implémente un pipeline **ELT moderne (architecture Medallion)**, de l'ingestion multi-sources à la visualisation, en passant par une phase de transformation distribuée (Spark) et d'IA sémantique (NLP).
 
-## Concept & Valeur Ajoutée
-L'outil collecte chaque matin les offres d'emploi, les normalise, les déduplique et les enrichit avec un **score de matching personnalisé**. Il permet de monitorer en temps réel le volume d'offres par technologie chez les acteurs majeurs du marché (ESN, startups, grands comptes).
+## 🚀 Concept & Valeur Ajoutée
+L'outil collecte chaque matin les offres d'emploi, les normalise, les déduplique et les enrichit avec un **score de matching hybride**. Contrairement aux jobboards classiques, JobRadar analyse la **proximité sémantique** entre mon profil idéal et l'offre réelle, tout en appliquant des filtres métiers rigoureux (détection automatique de la seniorité, des faux-positifs et des compétences demandées).
 
-## Architecture Technique
+## 🏗️ Architecture Technique
 
-### 1. Ingestion (Event-Driven)
-* **Sources :** * **France Travail API** : Source principale (via Auth OAuth2).
-    * **Adzuna API** : Agrégateur européen pour capter les offres complémentaires.
+### 1. Ingestion (Event-Driven & Multi-Sources)
+* **Sources Standard (Daily) :** **France Travail API** (OAuth2) et **Adzuna**.
+* **Sources Premium (MWF) :** **JSearch** (agrégateur via RapidAPI) et **Jooble**.
 * **Technos :** AWS Lambda (Python) déclenchées par AWS EventBridge.
-* **Fréquence :** Refresh quotidien à 8h00 UTC.
+* **Architecture :** Découpage granulaire permettant une rotation des clés API et une gestion fine des quotas.
 
-### 2. Stockage (Data Lake S3)
-Organisation en architecture médaillon :
-* `raw/` : Payloads JSON bruts horodatés.
-* `processed/` : Données nettoyées et partitionnées au format **Parquet**.
-* `curated/` : Tables finales (Gold) prêtes pour l'analyse.
+### 2. Stockage (Data Lakehouse S3)
+Organisation en architecture médaillon pour une traçabilité totale :
+* `bronze/` : Payloads JSON bruts horodatés (Single Source of Truth).
+* `silver/` : Données nettoyées, dédupliquées et vectorisées au format **Parquet**.
+* `gold/` : Tables finales prêtes pour l'analyse, partitionnées par date d'ingestion.
 
-### 3. Transformation & Modélisation
-* **PySpark (Silver) :** Nettoyage lourd et **déduplication multi-sources** via un algorithme de hashing (SHA256). Parsing des descriptions pour l'extraction des technos par Regex. Exécuté sur **GitHub Actions** (Compute).
-* **dbt Core (Gold) :** * **Silver** : Mapping des tables Parquet via Athena.
-    * **Gold** : Calcul du score de matching (SQL analytique) et agrégats métier.
-* **AWS Athena :** Moteur de requêtage serverless permettant d'exposer les données Gold sans base de données managée.
+### 3. Transformation & Intelligence
+* **PySpark (Processing Layer) :** 
+    * Déduplication multi-sources par hashing SHA256.
+    * **NLP (IA) :** Génération d'embeddings via le modèle `all-MiniLM-L6-v2` (Sentence Transformers) pour capturer le contexte sémantique des descriptions.
+    * Exécuté sur **GitHub Actions** pour déporter les coûts de calcul.
+* **dbt Core (Analytical Layer) :** 
+    * Modélisation SQL sur **AWS Athena**.
+    * Calcul du score de matching via Similarité Cosinus entre vecteurs d'offres et vecteur de profil idéal.
+    * Application de règles métier complexes (Bonus éthique, malus seniorité, détection de faux-positifs contextuels).
 
-### Ajustement du moteur de matching
+### 4. Exposition & Interface
+* **API :** FastAPI containerisée (Docker) déployée sur **AWS Lambda (Serverless v2)** via Mangum. Sécurisée par clé API interne et restriction CORS.
+* **Dashboard :** Interface **Streamlit** hébergée sur Streamlit Cloud, offrant une visualisation interactive des KPIs (Matching moyen, salaires, labels automatiques).
 
-Le projet utilise un moteur de scoring hybride combinant la similarité sémantique (NLP) et des règles métier déterministes. Si vous constatez que certaines offres remontent avec un score trop élevé malgré des mots-clés incompatibles (ex: "Expérience significative" ou "Lead" pour un profil Junior), vous pouvez ajuster la sensibilité du filtrage directement dans le fichier transform/dbt_project.yml.
+## 🧠 Moteur de Matching Hybride
+Le projet utilise une logique de scoring à deux piliers :
+1. **Pilier Sémantique (50%)** : Comparaison vectorielle (IA) pour comprendre les nuances du poste et le comparer à une offre idéale type. 
+2. **Pilier Métier (50%)** : Système de bonus/malus paramétrables dans `dbt_project.yml` :
+    - **Bonus :** Junior-friendly, Mentorat, Impact écologique (B-Corp), Open source.
+    - **Malus/Veto :** Seniorité cachée, stages, ...
 
-Modifiez les valeurs dans la section vars :
-
-- Augmentez les pénalités (penalty_senior, penalty_lead, penalty_hidden_seniority) pour durcir le filtrage sur les intitulés et descriptions.
-
-- Ajustez les seuils d'expérience (penalty_mid_experience) pour rejeter plus fermement les offres demandant plus de 2 ans d'expérience.
-
-Une fois les variables modifiées, relancez dbt run pour mettre à jour le classement instantanément.
-### 4. Exposition & Orchestration
-* **API :** FastAPI containerisée (Docker) déployée sur **AWS App Runner** (Endpoint public sécurisé).
-* **Dashboard :** Interface interactive **Streamlit** hébergée sur **Streamlit Community Cloud** (Gratuit à vie), consommant les données via l'API.
-* **Orchestration :** Workflow engine piloté par **GitHub Actions**, gérant l'enchaînement automatique chaque matin : Ingestion → Spark → dbt → Refresh API.
-
-### 💰 Cloud Optimization (FinOps)
-Le projet est optimisé pour un coût réel de **0€** pour l'utilisateur :
-* **Stockage Columnar (Parquet)** : Réduit la taille des données de ~80% et minimise les frais de scan Athena.
-* **Compute Hybride** : Les transformations lourdes (Spark/dbt) sont déportées sur les runners GitHub gratuits pour économiser les ressources AWS.
-* **Gestion des Crédits** : Le coût fixe d'App Runner (~7$/mois) est intégralement couvert par les crédits AWS (enveloppe de 140$), garantissant 0€ de reste à charge pendant 20 mois. Si le projet n'est pas utilisé pour un temps : 
-```bash
-terraform destroy
-```
-Une alternative 'Full-Free' consisterait à supprimer l'API pour que Streamlit lise directement les fichiers Parquet via le connecteur Athena, éliminant ainsi les frais fixes d'App Runner.
-
-* **Lifecycle Policies S3** : Nettoyage automatique des fichiers temporaires et archivage vers Glacier.
+## 💰 Cloud Optimization & FinOps
+Le projet est conçu pour un coût de fonctionnement approchant des **0€** :
+* **Serverless Total** : L'abandon d'App Runner au profit d'AWS Lambda pour l'API élimine tout frais fixe. On ne paye que ce qu'on consomme (souvent couvert par le Free Tier d'AWS).
+* **GitHub Actions as Compute** : Utilisation des runners gratuits pour Spark et dbt.
+* **Parquet & Partitionnement** : Réduction de 80% du volume de données scanné par Athena.
+* **Lifecycle Policies** : Nettoyage automatique des résultats Athena après 7 jours.
 
 ## 🛠️ Stack Technologique
 | Couche | Technologies |
 | :--- | :--- |
-| **Langages** | Python, SQL Analytique, PySpark |
-| **Data Stack** | dbt Core, AWS Athena, Pandas |
-| **Cloud (AWS)** | S3, Lambda, App Runner, ECR, IAM |
-| **Infrastructure** | Terraform (Infrastructure as Code) |
-| **Orchestration** | GitHub Actions (CI/CD & Cron) |
+| **Langages** | Python 3.11, SQL (Presto/Athena), PySpark |
+| **Data & ML** | dbt Core, Sentence-Transformers (NLP), Pandas |
+| **Cloud (AWS)** | S3, Lambda, ECR, Glue, EventBridge, Athena |
+| **Infra & DevOps** | Terraform (IaC), Docker, GitHub Actions (CI/CD) |
+| **Visualisation** | Streamlit, Streamlit Cloud |
 
-## ⚙️ Justifications Techniques
-* **Sécurité & IAM** : Utilisation de **IAM Instance Roles** pour l'API, évitant la manipulation de clés d'accès statiques.
-* **Priorisation Valeur (Dashboard vs K8s)** : Le choix d'App Runner et Streamlit Cloud a été privilégié pour délivrer rapidement une interface fonctionnelle. L'orchestration **Kubernetes (Minikube/EKS)** est conservée en tant qu'évolution technique future pour l'apprentissage du scaling.
-* **Terraform** : Garantit la reproductibilité totale de l'infrastructure en quelques minutes.
-
-## 🚀 CI/CD Workflow
-Le pipeline GitHub Actions automatise chaque matin :
-1.  **Ingestion** : Déclenchement des Lambdas AWS.
-2.  **Processing** : Exécution du job PySpark (Nettoyage & Silver).
-3.  **Modeling** : Transformation dbt sur Athena (Scoring & Gold).
-4.  **Deploy** : Build de l'image Docker, Push vers ECR et mise à jour de l'API sur **App Runner**.
+## 🚀 Installation & Déploiement
+1. **Infra** : `terraform apply` (crée l'intégralité du Data Lake et des rôles IAM).
+2. **Profil** : Générer votre vecteur de référence en modifiant l'offre idéale type via `src/scripts/generate_profile.py`.
+3. **CI/CD** : Configurer les secrets GitHub pour déclencher la pipeline automatique.
 
 ---
-*Ce projet démontre une maîtrise transverse en Data Engineering et culture DevOps, appliquée à un cas d'usage réel et opérationnel.*
+*Ce projet démontre une maitrise de différents outils de Data Engineering (Medallion, Spark, dbt) et en Cloud Architecture (AWS Serverless, Terraform).*
