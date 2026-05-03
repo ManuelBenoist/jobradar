@@ -1,17 +1,22 @@
-name: API CD (Build & Push to ECR)
+name: API Continuous Deployment
 
+# Ce workflow automatise le build de l'image Docker, son stockage sur Amazon ECR 
+# et la mise à jour de la fonction AWS Lambda qui héberge l'API.
 on:
   push:
     branches: [ main ]
+    # Le déploiement ne se déclenche que si des modifications sont apportées au dossier api/
     paths:
       - 'api/**'
-  workflow_dispatch:
+  workflow_dispatch: # Permet un déclenchement manuel depuis l'interface GitHub
 
 jobs:
   build-and-push:
+    name: Build & Deploy to AWS
     runs-on: ubuntu-latest
+    
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Configure AWS credentials
@@ -20,6 +25,7 @@ jobs:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: eu-west-3
+        # Utilisation des secrets GitHub pour une sécurité optimale des accès AWS
 
       - name: Login to Amazon ECR
         id: login-ecr
@@ -33,14 +39,20 @@ jobs:
         run: |
           cd api
 
+          # --platform linux/amd64 est requis pour la compatibilité avec AWS Lambda (x86_64)
+          # --provenance=false évite la création de manifestes multi-arch non supportés par certains outils ECR
           docker build --platform linux/amd64 --provenance=false -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG .
+          
+          # Tag de l'image comme 'latest' pour faciliter le déploiement Lambda
           docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:latest
           
+          # Push des deux tags vers le repository distant
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
 
       - name: Update Lambda Function Code
         run: |
+          # Commande CLI AWS pour forcer la Lambda à utiliser la nouvelle image fraîchement poussée
           aws lambda update-function-code \
             --function-name jobradar-api-serverless-v2 \
             --image-uri ${{ steps.login-ecr.outputs.registry }}/jobradar-api:latest \
