@@ -31,6 +31,7 @@ ingestion/data/**/*.json
 .DS_Store
 .vscode/
 .cursor/
+/node_modules/
 
 # --- Terraform ---
 **/.terraform/
@@ -61,5 +62,11 @@ src/lambda/jooble/*
 !src/lambda/jooble/requirements.txt
 
 # UI 
+.streamlit
 .streamlit/*
 secrets.toml
+
+# --- Lint/Tests ---
+.pytest_cache/
+.ruff_cache/
+__pycache__/
