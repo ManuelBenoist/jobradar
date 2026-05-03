@@ -166,7 +166,26 @@ if data_raw and "jobs" in data_raw:
 # --- HEADER ---
 st.title("📡 JobRadar Live")
 st.caption(
-    "Veille automatisée de recherche d'emplois Data & DevOps, personnalisé pour Manuel B.| Pipeline ELT Serverless sur AWS"
+    "Veille automatisée de recherche d'emplois Data & DevOps en région nantaise, personnalisé pour Manuel B.| Pipeline ELT Serverless sur AWS"
+)
+# --- LIEN GITHUB STYLISÉ ---
+st.markdown(
+    """
+    <div style="display: flex; align-items: center; gap: 20px; margin-bottom: 20px; flex-wrap: wrap;">
+        <!-- Badge GitHub -->
+        <a href="https://github.com/ManuelBenoist/jobradar" target="_blank" style="text-decoration: none;">
+            <img src="https://img.shields.io/badge/Voir_le_Code_Source-GitHub-100000?style=for-the-badge&logo=github&logoColor=white" />
+        </a>
+        <!-- État de la Pipeline -->
+        <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="font-weight: bold; font-size: 14px;">État de la pipeline :</span>
+            <a href="https://github.com/ManuelBenoist/jobradar/actions/workflows/data_pipeline.yml" target="_blank">
+                <img src="https://github.com/ManuelBenoist/jobradar/actions/workflows/data_pipeline.yml/badge.svg" />
+            </a>
+        </div>
+    </div>
+    """,
+    unsafe_allow_html=True,
 )
 
 tab_radar, tab_tech = st.tabs(["🎯 Radar des offres", "🏗️ Architecture du projet"])
@@ -231,7 +250,7 @@ with tab_radar:
         k1, k2, k3, k4 = st.columns(4)
         k1.metric("Offres analysées", len(df))
         k2.metric("Nouveautés (<24h)", f"{new_jobs_count}")
-        k3.metric("Matching Moyen", f"{int(df['matching_score'].mean())}%")
+        k3.metric("Score matching moyen", f"{int(df['matching_score'].mean())}%")
 
         valid_salaries = df[df["salary_min"] > 0]["salary_min"]
         avg_salary_text = (
@@ -239,7 +258,7 @@ with tab_radar:
             if not valid_salaries.empty
             else "N/A"
         )
-        k4.metric("Salaire Moyen", avg_salary_text)
+        k4.metric("Salaire Moyen (quand disponible)", avg_salary_text)
 
         st.divider()
 
@@ -325,6 +344,8 @@ with tab_radar:
         st.divider()
 
         # 3. AFFICHAGE DU TABLEAU (Config complète conservée)
+        st.subheader("📋 Offres Filtrées :")
+
         st.dataframe(
             filtered_df,
             column_config={
@@ -387,21 +408,6 @@ with tab_radar:
 # --- ONGLET 2 : ARCHITECTURE & TECH ---
 with tab_tech:
     st.header("🏗️ Architecture du Projet : JobRadar Live")
-
-    # --- LIEN GITHUB STYLISÉ ---
-    st.markdown(
-        """
-        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 20px;">
-            <a href="https://github.com/ManuelBenoist/jobradar" target="_blank">
-                <img src="https://img.shields.io/badge/Voir_le_Code_Source-GitHub-100000?style=for-the-badge&logo=github&logoColor=white" />
-            </a>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-    st.markdown(
-        """**État de la pipeline :** [![JobRadar CI](https://github.com/ManuelBenoist/jobradar/actions/workflows/data_pipeline.yml/badge.svg)](https://github.com/ManuelBenoist/jobradar/actions/workflows/data_pipeline.yml)"""
-    )
 
     # --- SECTION 0 : Concept ---
     st.subheader("Concept")
@@ -569,3 +575,41 @@ with tab_tech:
             ],
         }
     )
+
+    # --- LIEN GITHUB STYLISÉ ---
+    st.markdown(
+        """
+        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 20px;">
+            <a href="https://github.com/ManuelBenoist/jobradar" target="_blank">
+                <img src="https://img.shields.io/badge/Voir_le_Code_Source-GitHub-100000?style=for-the-badge&logo=github&logoColor=white" />
+            </a>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+    # --- SECTION : CONTACT & NETWORKING ---
+    st.divider()
+    st.subheader("📬 Contact")
+    st.markdown(
+        """
+        Comme le projet le suggère, je suis ouvert aux nouvelles opportunités !
+        """
+    )
+
+    # Liens stylisés sous forme de badges
+    contact_html = """
+    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+        <a href="https://www.linkedin.com/in/manuel-benoist" target="_blank">
+            <img src="https://img.shields.io/badge/LinkedIn-0077B5?style=for-the-badge&logo=linkedin&logoColor=white" />
+        </a>
+        <a href="mailto:manuelbenoist@gmail.com" target="_blank">
+            <img src="https://img.shields.io/badge/Email-D14836?style=for-the-badge&logo=gmail&logoColor=white" />
+        </a>
+        <a href="https://github.com/ManuelBenoist" target="_blank">
+            <img src="https://img.shields.io/badge/Portfolio_GitHub-181717?style=for-the-badge&logo=github&logoColor=white" />
+        </a>
+    </div>
+    """
+    st.markdown(contact_html, unsafe_allow_html=True)
+
+    st.caption("© 2026 | JobRadar Live par Manuel B.")
