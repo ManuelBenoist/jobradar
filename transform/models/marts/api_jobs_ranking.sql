@@ -21,7 +21,7 @@ final AS (
     SELECT 
         title,
         company_name,
-        location_clean AS city,
+        job_location AS city,
         salary_min_numeric AS salary_min,
         extracted_skills AS skills,
         TRIM(description) AS description, 
