@@ -1,63 +1,79 @@
 name: JobRadar Data Pipeline (Silver & Gold)
 
+# Orchestration quotidienne du pipeline de données.
+# Ce workflow gère la transition des données de la couche Bronze vers Gold.
 on:
   schedule:
-    # 05:15 UTC = 07:15 Paris
+    # Exécution quotidienne à 07:15 Paris (05:15 UTC)
     - cron: '15 5 * * *'
-  workflow_dispatch: # Permet de lancer manuellement depuis l'interface GitHub
+  workflow_dispatch: # Déclenchement manuel autorisé pour le rejeu de pipeline
 
 jobs:
-  # --- JOB 1 : Transformation Spark (Silver Layer) ---
-  spark-transform:
+  # --- ÉTAPE 1 : Transformation Spark (Couche Silver) ---
+  # Responsabilité : Nettoyage, normalisation et extraction de skills (NLP)
+  spark-transform-silver:
+    name: PySpark Transformation (Silver Layer)
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Set up Python & Java
+      - name: Set up Python 3.11
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      - name: Set up Java
+          cache: 'pip'
+
+      - name: Set up Java 11
         uses: actions/setup-java@v3
         with:
           distribution: 'temurin'
           java-version: '11'
+        # Java est requis pour l'exécution du moteur Apache Spark
 
-      - name: Run PySpark Transformation
+      - name: Install Spark dependencies
+        run: |
+          pip install pyspark==3.4.1 python-dotenv boto3 pandas sentence-transformers torch pyarrow
+
+      - name: Execute PySpark Job
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           AWS_REGION: eu-west-3
         run: |
-          pip install pyspark==3.4.1 python-dotenv boto3 pandas sentence-transformers torch pyarrow
+          # Traitement distribué des données brutes vers le format Parquet (Silver)
           python src/spark/transform.py
 
-  # --- JOB 2 : Transformation dbt (Gold Layer) ---
-  dbt-scoring:
-    needs: spark-transform
+  # --- ÉTAPE 2 : Transformation dbt (Couche Gold) ---
+  # Responsabilité : Scoring hybride, agrégations et préparation des vues API
+  dbt-scoring-gold:
+    name: dbt Scoring Engine (Gold Layer)
+    needs: spark-transform-silver # Garantit que la couche Silver est prête
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
+          cache: 'pip'
 
-      - name: Install dbt
+      - name: Install dbt-athena
         run: pip install dbt-athena-community
 
-      - name: dbt Run
+      - name: Execute dbt Models
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           AWS_DEFAULT_REGION: eu-west-3
+          # Configuration des chemins S3 pour Athena
           DBT_S3_STAGING_DIR: s3://jobradar-athena-results-manuel-cloud/athena-query-results/
           DBT_S3_DATA_DIR: s3://jobradar-curated-manuel-cloud/gold/
         run: |
           cd transform
+          # Nettoyage des artefacts, installation des dépendances dbt et exécution
           dbt clean 
           dbt deps
           dbt run --target dev --profiles-dir .

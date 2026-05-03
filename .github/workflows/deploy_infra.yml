@@ -1,18 +1,24 @@
-name: Deploy Infrastructure (Terraform)
+name: Infrastructure Deployment (Terraform)
 
+# Ce workflow automatise le provisionnement des ressources AWS.
+# Il gère l'installation des dépendances Lambda, l'initialisation de Terraform
+# et l'application sécurisée du plan d'infrastructure.
 on:
   push:
-    branches: [ main ] # Se lance à chaque push sur main
+    branches: [ main ]
+    # Le déploiement ne se déclenche que si le code des Lambdas ou les fichiers Terraform changent
     paths:
       - 'src/lambda/**'
       - 'terraform/**'
-  workflow_dispatch: # Permet de déclencher manuellement le workflow depuis l'interface GitHub
+  workflow_dispatch: # Permet une exécution manuelle pour la maintenance de l'infra
 
 jobs:
   terraform-deploy:
+    name: Terraform Init & Apply
     runs-on: ubuntu-latest
+    
     steps:
-      - name: Checkout code
+      - name: Checkout repository
         uses: actions/checkout@v4
 
       - name: Configure AWS Credentials
@@ -25,8 +31,10 @@ jobs:
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v3
 
-      - name: Install dependencies (Lambda)
+      - name: Bundle Lambda dependencies
         run: |
+          # Installation des bibliothèques nécessaires directement dans les dossiers sources.
+          # Cette étape est cruciale pour que Terraform puisse créer des archives .zip valides.
           for dir in adzuna france_travail jsearch jooble; do
             pip install requests --target src/lambda/$dir/
           done
@@ -34,6 +42,7 @@ jobs:
       - name: Terraform Init & Apply
         working-directory: ./terraform
         env:
+          # Injection des secrets GitHub dans les variables Terraform via le préfixe TF_VAR_
           TF_VAR_jsearch_api_key: ${{ secrets.JSEARCH_API_KEY }}
           TF_VAR_jooble_api_key: ${{ secrets.JOOBLE_API_KEY }}
           TF_VAR_adzuna_app_id: ${{ secrets.ADZUNA_APP_ID }}
@@ -43,5 +52,7 @@ jobs:
           TF_VAR_internal_api_key: ${{ secrets.INTERNAL_API_KEY }}
           TF_VAR_athena_staging_dir: "s3://jobradar-athena-results-manuel-cloud/athena-temp/"
         run: |
+          # Initialisation des providers et du backend
           terraform init
+          # Application automatique des changements d'infrastructure
           terraform apply -auto-approve
