@@ -273,11 +273,15 @@ with tab_radar:
 
         for idx, (_i, row) in enumerate(top_jobs.iterrows()):
             with cols[idx]:
-                is_new = row['published_at'] >= limit_date
+                is_new = row["published_at"] >= limit_date
                 new_badge_html = (
-                    f'<span class="badge" style="background-color: #ede9fe; color: #5b21b6; border: 1px solid #ddd6fe; margin-left: 8px;">'
-                    f'✨ Nouveau</span>'
-                ) if is_new else ""
+                    (
+                        '<span class="badge" style="background-color: #ede9fe; color: #5b21b6; border: 1px solid #ddd6fe; margin-left: 8px;">'
+                        "✨ Nouveau</span>"
+                    )
+                    if is_new
+                    else ""
+                )
                 pos_html = ""
                 raw_pos = row.get("positive_labels")
                 if pd.notnull(raw_pos) and raw_pos != "":
@@ -302,20 +306,20 @@ with tab_radar:
 
                 card_html = (
                     f'<div class="job-card">'
-                    f'<div>'
+                    f"<div>"
                     f'<div class="card-source">{row.get("platform", "Source")}</div>'
-                    f'<div style="display: flex; align-items: center;">' # Flex pour aligner les badges
+                    f'<div style="display: flex; align-items: center;">'  # Flex pour aligner les badges
                     f'<div class="badge" style="background-color: {bg_color}; color: {text_color};">Match : {row["matching_score"]}%</div>'
-                    f'{new_badge_html}'
-                    f'</div>'
+                    f"{new_badge_html}"
+                    f"</div>"
                     f'<div class="card-title">{title_disp[:45]}{"..." if len(title_disp) > 45 else ""}</div>'
                     f'<div class="card-company">🏢 {row.get("company_name", "N/A")}</div>'
                     f'<div style="margin: 10px 0;">{pos_html}{neg_html}</div>'
-                    f'</div>'
+                    f"</div>"
                     f'<div style="margin-top: auto; padding-top: 15px;">'
                     f'<a href="{row.get("original_url", "#")}" target="_blank" style="text-decoration: none;">'
                     f'<button style="width: 100%; padding: 8px; background-color: #2563eb; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">'
-                    f'Détails & Postuler 🔗</button></a></div></div>'
+                    f"Détails & Postuler 🔗</button></a></div></div>"
                 )
                 st.markdown(card_html, unsafe_allow_html=True)
         st.divider()
