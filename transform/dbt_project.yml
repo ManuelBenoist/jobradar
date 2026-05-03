@@ -1,4 +1,3 @@
-
 name: 'jobradar'
 version: '1.0.0'
 profile: 'jobradar'
@@ -10,48 +9,53 @@ seed-paths: ["seeds"]
 macro-paths: ["macros"]
 snapshot-paths: ["snapshots"]
 
-clean-targets:         # directories to be removed by `dbt clean`
+clean-targets:
   - "target"
   - "dbt_packages"
 
-# --- CONFIGURATION DU SCORING ---
+# ============================================================================
+# CONFIGURATION DU SCORING MÉTIER (ALGORITHME HYBRIDE)
+# ============================================================================
+# Ces variables sont injectées dans les modèles SQL pour calculer le matching_score.
 vars:
   base_score: 20
   
-  # Expérience & Statut
-  bonus_junior_flag: 30
+  # --- Expérience & Adéquation Profil ---
+  bonus_junior_flag: 30       # Détection via mots-clés "Junior/Débutant"
   bonus_junior_title: 15
-  penalty_senior: -40       # On tape un peu plus fort sur le Senior
+  penalty_senior: -40         # Filtrage des profils trop expérimentés
   penalty_lead: -50     
-  penalty_mid_experience: -20 # Nouveau : pour les offres > 2 ans
-  penalty_high_experience: -50 # Nouveau : pour les offres > 5 ans    
-  penalty_technician: -15
-  penalty_hidden_seniority: -15  # Pour les phrases type "expérience significative"
-  penalty_internship: -100
+  penalty_mid_experience: -20  # Expérience > 2 ans
+  penalty_high_experience: -50 # Expérience > 5 ans    
+  penalty_technician: -15      # Éviter les rôles purement support/maintenance
+  penalty_hidden_seniority: -15 # Phrases types "Expérience significative"
+  penalty_internship: -100     # Exclusion des stages
 
-  # Éthique
-  penalty_ethics_light: -15 # Banques, Finance...
-  penalty_ethics_heavy: -60 # Armement, Guerre...
-  bonus_ethics: 30
+  # --- Valeurs & Éthique (Impact Social/Environnemental) ---
+  penalty_ethics_light: -15   # Secteurs à faible impact positif (Finance, etc.)
+  penalty_ethics_heavy: -60   # Secteurs en opposition aux valeurs (Défense, etc.)
+  bonus_ethics: 30            # Entreprises ESS, B-Corp, Impact
   
-  # Soft Perks & Culture
-  bonus_training_mentorship: 15    # Budget formation, mentorat
-  bonus_open_source: 20            # Contribution OS
+  # --- Culture & Avantages ---
+  bonus_training_mentorship: 15 # Accent mis sur la montée en compétence
+  bonus_open_source: 20         # Engagement technique communautaire
 
-  # Technos
-  bonus_cloud_stack: 12
-  bonus_tech_synergy: 15
+  # --- Synergie Technique ---
+  bonus_cloud_stack: 12        # Adéquation AWS/Cloud
+  bonus_tech_synergy: 15       # Maîtrise de la stack spécifique (Python/Spark/dbt)
 
-  # Préférences de vie
-  bonus_remote: 15
-  bonus_freshness: 10
+  # --- Qualité de Vie ---
+  bonus_remote: 15             # Télétravail
+  bonus_freshness: 10          # Prime à la nouveauté de l'offre
 
-# --- CONFIGURATION DES MODÈLES ---
+# ============================================================================
+# CONFIGURATION DES MODÈLES (MATÉRIALISATION)
+# ============================================================================
 models:
   jobradar:
     staging:
-      +materialized: view  # Les fichiers de staging sont souvent des vues
+      +materialized: view      # Couche Staging : Vues légères pour le renommage
     marts:
-      +materialized: table # Les couches silver/gold en tables pour la perf
-      +table_type: 'hive' # Spécifique à Athena pour créer des tables classiques
-      +format: 'parquet'  # On reste sur du Parquet pour la performance FinOps
+      +materialized: table     # Couche Gold/Marts : Tables physiques pour la performance API
+      +table_type: 'hive'      # Optimisation spécifique à AWS Glue/Athena
+      +format: 'parquet'       # Standard de stockage colonne (FinOps)

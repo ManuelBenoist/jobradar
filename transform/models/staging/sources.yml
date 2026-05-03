@@ -2,17 +2,32 @@ version: 2
 
 sources:
   - name: glue_silver
-    description: "Zone Silver - Données nettoyées et partitionnées par Spark (AWS Glue Catalog)"
-    database: awsdatacatalog # Nom standard pour le catalogue Glue dans dbt-athena
-    schema: jobradar_db      
+    description: >
+      Zone de passage entre Spark (Processing) et dbt (Modeling). 
+      Ces données résident dans le catalogue AWS Glue et sont partitionnées par date.
+    database: awsdatacatalog
+    schema: jobradar_db
     tables:
       - name: silver_jobs
+        description: "Offres d'emploi dédupliquées et normalisées par le moteur PySpark."
         external_location: "s3://jobradar-processed-manuel-cloud/silver_jobs/"
-        description: "Offres d'emploi dédupliquées et structurées par le pipeline PySpark"
         columns:
           - name: job_id
+            description: "Clé primaire technique générée (Hash SHA256)."
             tests:
               - unique
               - not_null
+
+          - name: source_name
+            description: "Nom de l'agrégateur d'origine (Adzuna, FT, Jooble, JSearch)."
+            tests:
+              - accepted_values:
+                  values: ['Adzuna', 'France Travail', 'Jooble', 'JSearch']
+
+          - name: published_at
+            description: "Timestamp normalisé de publication de l'offre."
+            tests:
+              - not_null
+
           - name: salary_min_numeric
-            description: "Salaire minimum extrait et converti en Integer"
+            description: "Valeur numérique du salaire annuel minimum (en Euros)."

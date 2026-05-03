@@ -2,14 +2,29 @@ version: 2
 
 models:
   - name: stg_silver_jobs
-    description: "Point d'entrée unique des données nettoyées par Spark"
+    description: >
+      Modèle de staging qui expose les données Silver. 
+      Il sert d'interface de nettoyage final avant le calcul du matching score.
     columns:
       - name: job_id
-        description: "Identifiant technique de l'offre (SHA256 ou ID Source)"
+        description: "Identifiant unique de l'offre."
         tests:
           - unique
           - not_null
+
       - name: ingestion_date
-        description: "Date de traitement de l'offre"
+        description: "Clé de partitionnement correspondant à la date de traitement Spark."
         tests:
           - not_null
+
+      - name: description_vector
+        description: "Vecteur d'embedding (array) généré par Sentence-Transformers."
+        
+      - name: extracted_skills
+        description: "Liste des compétences techniques détectées par analyse de mots-clés."
+
+      - name: is_red_flag
+        description: "Indicateur booléen pour les offres hors cible (Stage, Alternance, etc.)."
+        tests:
+          - accepted_values:
+              values: [true, false]
