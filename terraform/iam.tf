@@ -1,28 +1,12 @@
-# On crée une "Policy" : le document qui liste les droits
-resource "aws_iam_policy" "lambda_ingestion_policy" {
-  name        = "jobradar-lambda-ingestion-policy"
-  description = "Autorise la Lambda à écrire dans le bucket RAW"
+# ============================================================================
+# SECURITY : IAM ROLES & POLICIES
+# ============================================================================
 
-  policy = jsonencode({
-    Version = "2012-10-17"
-    Statement = [
-      {
-        Action   = ["s3:PutObject", "s3:ListBucket"]
-        Effect   = "Allow"
-        Resource = [
-          "${aws_s3_bucket.raw.arn}",
-          "${aws_s3_bucket.raw.arn}/*"
-        ]
-      }
-    ]
-  })
-}
+# --- RÔLE D'INGESTION (LAMBDAS) ---
 
-# 1. Le "Rôle" : L'identité de la Lambda
 resource "aws_iam_role" "lambda_ingestion_role" {
   name = "jobradar-lambda-ingestion-role"
 
-  # On dit à AWS que ce rôle est réservé à une Lambda
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [{
@@ -33,52 +17,56 @@ resource "aws_iam_role" "lambda_ingestion_role" {
   })
 }
 
-# 2. On attache le badge (Policy) au rôle
+resource "aws_iam_policy" "lambda_ingestion_policy" {
+  name        = "jobradar-lambda-ingestion-policy"
+  description = "Droits d'écriture dans le Bucket RAW pour l'ingestion"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Action   = ["s3:PutObject", "s3:ListBucket"]
+      Effect   = "Allow"
+      Resource = [aws_s3_bucket.raw.arn, "${aws_s3_bucket.raw.arn}/*"]
+    }]
+  })
+}
+
 resource "aws_iam_role_policy_attachment" "lambda_s3_attach" {
   role       = aws_iam_role.lambda_ingestion_role.name
   policy_arn = aws_iam_policy.lambda_ingestion_policy.arn
 }
 
-# 3. On ajoute les droits de base pour que la Lambda puisse écrire des Logs (pour débugger)
 resource "aws_iam_role_policy_attachment" "lambda_logs" {
   role       = aws_iam_role.lambda_ingestion_role.name
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
 }
 
-# "Policy" pour Athena 
+# --- POLICY ANALYTICS (ATHENA & GLUE) ---
+
 resource "aws_iam_policy" "athena_query_policy" {
   name        = "jobradar-athena-query-policy"
-  description = "Autorise la lecture des données transformées et l'écriture des résultats Athena"
+  description = "Autorise l'exécution de requêtes Athena et la gestion du catalogue Glue"
 
   policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
       {
-        # Droits sur les buckets S3
-        Effect   = "Allow"
-        Action   = [
-          "s3:GetBucketLocation",
-          "s3:GetObject",
-          "s3:ListBucket",
-          "s3:PutObject" # Nécessaire pour écrire les fichiers de résultats (.csv)
-        ]
+        # Accès aux données transformées et stockage des résultats
+        Effect = "Allow"
+        Action = ["s3:GetBucketLocation", "s3:GetObject", "s3:ListBucket", "s3:PutObject"]
         Resource = [
-          "${aws_s3_bucket.processed.arn}",
-          "${aws_s3_bucket.processed.arn}/*",
-          "${aws_s3_bucket.athena_results.arn}",
-          "${aws_s3_bucket.athena_results.arn}/*"
+          aws_s3_bucket.processed.arn, "${aws_s3_bucket.processed.arn}/*",
+          aws_s3_bucket.athena_results.arn, "${aws_s3_bucket.athena_results.arn}/*"
         ]
       },
       {
-        # Droits sur le catalogue Glue (pour comprendre la structure des tables)
-        Effect   = "Allow"
-        Action   = [
-          "glue:GetDatabase",
-          "glue:GetTable",
-          "glue:GetPartitions",
-          "glue:BatchCreatePartition" # Pour que le MSCK REPAIR puisse ajouter des partitions
+        # Interaction avec le Data Catalog (requis pour MSCK REPAIR et lecture des schémas)
+        Effect = "Allow"
+        Action = [
+          "glue:GetDatabase", "glue:GetTable", 
+          "glue:GetPartitions", "glue:BatchCreatePartition"
         ]
-        Resource = ["*"] # On peut restreindre à l'ARN de la DB si on veut être ultra-précis
+        Resource = ["*"]
       }
     ]
   })

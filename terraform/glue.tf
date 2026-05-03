@@ -1,23 +1,24 @@
-# 1. La bdd
+# ============================================================================
+# DATA CATALOG : GLUE DATABASE & SILVER TABLE
+# ============================================================================
+
 resource "aws_glue_catalog_database" "jobradar_db" {
-  name = "jobradar_db"
+  name        = "jobradar_db"
+  description = "Base de données pour les couches Silver et Gold du projet JobRadar"
 }
 
-# 2. La Table Silver (Anciennement processed_jobs)
-# On garde le nom de ressource Terraform "processed_jobs" pour éviter de tout recréer,
-# mais on change le nom réel dans AWS pour "silver_jobs".
 resource "aws_glue_catalog_table" "processed_jobs" {
-  name          = "silver_jobs" 
+  name          = "silver_jobs"
   database_name = aws_glue_catalog_database.jobradar_db.name
-
-  table_type = "EXTERNAL_TABLE"
+  table_type    = "EXTERNAL_TABLE"
 
   parameters = {
-    "classification" = "parquet"
+    "classification"   = "parquet"
+    "compressionType"  = "snappy"
+    "typeOfData"       = "file"
   }
 
   storage_descriptor {
-    # CRITIQUE : On pointe bien sur le sous-dossier défini dans ton script Spark
     location      = "s3://jobradar-processed-manuel-cloud/silver_jobs/"
     input_format  = "org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat"
     output_format = "org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat"
@@ -27,7 +28,7 @@ resource "aws_glue_catalog_table" "processed_jobs" {
       serialization_library = "org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe"
     }
 
-    # --- Mapping exact de sortie Spark ---
+    # Schéma des colonnes (Couche Silver enrichie par PySpark)
     columns {
       name = "job_id"
       type = "string"
@@ -62,7 +63,7 @@ resource "aws_glue_catalog_table" "processed_jobs" {
     }
     columns {
       name = "extracted_skills"
-      type = "array<string>" # Type complexe pour Athena
+      type = "array<string>"
     }
     columns {
       name = "salary_min_numeric"
@@ -98,23 +99,28 @@ resource "aws_glue_catalog_table" "processed_jobs" {
     }
   }
 
+  # Partitionnement par date pour optimiser les performances de scan d'Athena
   partition_keys {
     name = "ingestion_date"
     type = "string"
   }
 }
 
+# ------ ATHENA CONFIGURATION ------
+
 resource "aws_athena_workgroup" "jobradar_workgroup" {
-  name = "jobradar_workgroup"
+  name        = "jobradar_workgroup"
+  description = "Workgroup dédié à JobRadar avec limite de scan pour contrôle des coûts"
 
   configuration {
-    enforce_workgroup_configuration    = false
+    enforce_workgroup_configuration    = true
     publish_cloudwatch_metrics_enabled = true
 
     result_configuration {
       output_location = "s3://${aws_s3_bucket.athena_results.bucket}/"
     }
 
+    # Limite de sécurité : 100MB par requête
     bytes_scanned_cutoff_per_query = 104857600 
   }
 

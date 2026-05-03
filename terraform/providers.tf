@@ -1,11 +1,22 @@
+# ============================================================================
+# TERRAFORM & PROVIDERS CONFIGURATION
+# ============================================================================
+
 terraform {
+  required_version = ">= 1.5.0" # Garantit la compatibilité des fonctionnalités utilisées
+
   required_providers {
     aws = {
       source  = "hashicorp/aws"
       version = "~> 5.0"
     }
+    archive = {
+      source  = "hashicorp/archive"
+      version = "~> 2.4.0"
+    }
   }
-  # Configuration du backend S3 pour stocker l'état de Terraform
+
+  # Stockage distant de l'état (State) pour permettre le travail collaboratif et la CI/CD
   backend "s3" {
     bucket = "jobradar-tfstate-manuel-cloud"
     key    = "terraform.tfstate"
@@ -14,5 +25,13 @@ terraform {
 }
 
 provider "aws" {
-  region = "eu-west-3" 
+  region = var.aws_region
+
+  default_tags {
+    tags = {
+      Project   = "JobRadar"
+      ManagedBy = "Terraform"
+      Owner     = "Manuel"
+    }
+  }
 }

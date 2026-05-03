@@ -55,9 +55,8 @@ variable "athena_staging_dir" {
   type        = string
 }
 
-# Variable pour l'API de JobRadar
 variable "internal_api_key" {
-  description = "Clé secrète pour sécuriser l'API"
+  description = "Clé secrète partagée entre le dashboard et l'API"
   type        = string
-  sensitive   = true
+  sensitive   = true # Masque la valeur dans les logs Terraform
 }
