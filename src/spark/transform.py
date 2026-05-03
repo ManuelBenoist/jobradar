@@ -1,5 +1,7 @@
 import logging
 import os
+import uuid
+from datetime import datetime
 
 import boto3
 import pandas as pd
@@ -48,25 +50,27 @@ def create_spark_session() -> SparkSession:
         .getOrCreate()
     )
 
+
 def log_pipeline_status(spark, status, count=0, error=""):
     """Écrit le statut du run dans S3 pour l'observabilité."""
-    from datetime import datetime
-    import uuid
 
     # Création d'une ligne de log unique
-    log_entry = [{
-        "run_id": str(uuid.uuid4()),
-        "run_at": datetime.now(),
-        "status": status, # 'SUCCESS' ou 'FAILED'
-        "source_name": "Silver_Pipeline",
-        "records_count": count,
-        "error_message": error[:500] # On tronque pour éviter les logs trop lourds
-    }]
-    
+    log_entry = [
+        {
+            "run_id": str(uuid.uuid4()),
+            "run_at": datetime.now(),
+            "status": status,  # 'SUCCESS' ou 'FAILED'
+            "source_name": "Silver_Pipeline",
+            "records_count": count,
+            "error_message": error[:500],  # On tronque pour éviter les logs trop lourds
+        }
+    ]
+
     log_df = spark.createDataFrame(log_entry)
     # On écrit en 'append' dans le dossier surveillé par ta table Athena
     log_df.write.mode("append").parquet("s3a://jobradar-processed-manuel-cloud/logs/")
     logger.info(f"📊 Statut enregistré : {status}")
+
 
 # --- ÉTAPE 1 : EXTRACTION & STAGING (BRONZE) ---
 
@@ -451,8 +455,8 @@ def run_pipeline() -> None:
         raw_df = df_adz.unionByName(df_ft).unionByName(df_js).unionByName(df_jb)
         df_silver = apply_silver_logic(raw_df)
 
-        final_count = df_silver.count() 
-        
+        final_count = df_silver.count()
+
         # Écriture partitionnée au format Parquet
         logger.info(
             f"🚀 Écriture de {final_count} offres uniques vers la couche Silver..."

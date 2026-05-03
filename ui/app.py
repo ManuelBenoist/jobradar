@@ -13,6 +13,7 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 
+
 def fetch_pipeline_status():
     """Appelle l'API pour connaître l'état de santé du système."""
     API_URL = st.secrets["API_URL"]
@@ -21,7 +22,7 @@ def fetch_pipeline_status():
         if response.status_code == 200:
             return response.json()
         return None
-    except:
+    except Exception:
         return None
 
 
@@ -152,8 +153,10 @@ with tab_radar:
                     f"🟢 Pipeline saine : dernière synchronisation avec AWS Athena le {health.get('last_run')}, {health.get('count')} offres ingérées au total."
                 )
             else:
-                st.caption("🔴 **Alerte Pipeline** | Échec détecté sur le dernier run. Les données peuvent être obsolètes.")
-        
+                st.caption(
+                    "🔴 **Alerte Pipeline** | Échec détecté sur le dernier run. Les données peuvent être obsolètes."
+                )
+
         k1, k2, k3, k4 = st.columns(4)
         k1.metric("Offres analysées", len(df))
         k2.metric("Nouveautés (<48h)", f"{new_jobs_count}")
