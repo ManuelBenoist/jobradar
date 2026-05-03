@@ -1,4 +1,4 @@
-# --- Python ---
+# --- PYTHON ---
 venv/
 .venv/
 __pycache__/
@@ -6,36 +6,29 @@ __pycache__/
 .env
 *.egg-info
 *.pyc
+.pytest_cache/
+.ruff_cache/
 
-# --- dbt ---
+# --- DBT ---
 transform/logs/
 transform/target/
 transform/dbt_packages/
-transform/logs/
+# On ignore le profile local s'il contient des chemins spécifiques
+transform/profiles.yml
 logs/
 
-# --- Bases de données (DuckDB) ---
-# On ignore les fichiers de base de données locaux
+# --- BASES DE DONNÉES & DONNÉES ---
 *.duckdb
 *.duckdb.wal
-
-# --- Données ---
-# Très important : on n'envoie JAMAIS les données brutes sur GitHub
 data/
-# Payloads JSON bruts (dev local, miroir type couche raw/)
-raw/**/*.json
-ingestion/raw/**/*.json
-ingestion/data/**/*.json
+# Payloads JSON bruts (Bronze Layer locale)
+**/raw/**/*.json
+**/data/**/*.json
 
-# --- OS & IDE ---
-.DS_Store
-.vscode/
-.cursor/
-/node_modules/
-
-# --- Terraform ---
+# --- TERRAFORM ---
 **/.terraform/
 terraform.tfstate
+terraform.tfstate.backup
 terraform.tfvars
 *.tfstate
 *.tfstate.*
@@ -44,14 +37,14 @@ terraform.tfvars
 crash.log
 *.zip
 
-# --- LAMBDAS (Dépendances) ---
-# On ignore tous les dossiers générés par 'pip install -t .'
+# --- LAMBDAS (DÉPENDANCES PIP) ---
+# On ignore les dossiers de libs installées par 'pip install -t'
 src/lambda/adzuna/*
 src/lambda/france_travail/*
 src/lambda/jsearch/*
 src/lambda/jooble/*
 
-# Mais on force Git à garder nos scripts Python et fichiers de configuration !
+# Exceptions : On conserve impérativement le code source et les requirements
 !src/lambda/adzuna/*.py
 !src/lambda/adzuna/requirements.txt
 !src/lambda/france_travail/*.py
@@ -61,12 +54,14 @@ src/lambda/jooble/*
 !src/lambda/jooble/*.py
 !src/lambda/jooble/requirements.txt
 
-# UI 
-.streamlit
-.streamlit/*
-secrets.toml
+# --- UI & DASHBOARD ---
+.streamlit/
+# On ne commit JAMAIS les secrets Streamlit locaux
+.streamlit/secrets.toml
 
-# --- Lint/Tests ---
-.pytest_cache/
-.ruff_cache/
-__pycache__/
+# --- OS & IDE ---
+.DS_Store
+.vscode/
+.cursor/
+.idea/
+/node_modules/

@@ -5,21 +5,35 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "jobradar"
 version = "0.1.0"
-description = "Veille et analyse du marché de l'emploi Data & DevOps"
+description = "Pipeline ELT & Scoring d'offres d'emploi Data/DevOps"
 readme = "README.md"
 requires-python = ">=3.10"
+# On liste ici les dépendances de base partagées
 dependencies = [
-    "requests>=2.31.0",
+    "requests>=2.33.0",      # Corrigé (CVE-2026-25645)
     "pandas>=2.1.0",
-    "python-dotenv>=1.0.0",
+    "python-dotenv>=1.2.2",  # Corrigé (CVE-2026-28684)
+    "boto3>=1.34.0",
 ]
 
 [project.optional-dependencies]
+# Séparation par usage pour installer uniquement le nécessaire en local
 dev = [
     "ruff>=0.4.0",
     "pytest>=8.0.0",
+    "pip-audit",   # Pour la sécurité
+    "pipdeptree",  # Pour voir la hiérarchie des dépendances
 ]
+api = ["fastapi", "mangum", "uvicorn"]
+spark = ["pyspark==3.4.1"]
+viz = ["streamlit>=1.30.0"]
 
 [tool.setuptools.packages.find]
 where = ["."]
-include = ["ingestion*"]
+include = ["src*"] # On capture tout ce qui est dans src/
+
+[tool.ruff]
+line-length = 88
+target-version = "py310"
+select = ["E", "F", "B", "I"] # Règles de base + Imports
+ignore = ["E501"] # On laisse passer les lignes un peu longues si nécessaire
