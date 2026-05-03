@@ -386,41 +386,186 @@ with tab_radar:
 
 # --- ONGLET 2 : ARCHITECTURE & TECH ---
 with tab_tech:
-    st.header("Spécifications Techniques")
+    st.header("🏗️ Architecture du Projet : JobRadar Live")
+
+    # --- LIEN GITHUB STYLISÉ ---
+    st.markdown(
+        """
+        <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 20px;">
+            <a href="https://github.com/ManuelBenoist/jobradar" target="_blank">
+                <img src="https://img.shields.io/badge/Voir_le_Code_Source-GitHub-100000?style=for-the-badge&logo=github&logoColor=white" />
+            </a>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
     st.markdown(
         """**État de la pipeline :** [![JobRadar CI](https://github.com/ManuelBenoist/jobradar/actions/workflows/data_pipeline.yml/badge.svg)](https://github.com/ManuelBenoist/jobradar/actions/workflows/data_pipeline.yml)"""
     )
 
-    col_a, col_b = st.columns(2)
-    with col_a:
-        with st.expander("🏗️ Pipeline Data (ELT)", expanded=True):
-            st.markdown("""
-            - **Ingestion :** Lambdas Python multi-sources (Adzuna, FT, JSearch, Jooble).
-            - **Storage :** S3 (Bronze/Silver/Gold) en format Parquet.
-            - **Transformation :** PySpark (Déduplication & NLP) + dbt Core (Scoring SQL).
-            """)
-
-    with col_b:
-        with st.expander("☁️ Cloud & DevOps", expanded=True):
-            st.markdown("""
-            - **API :** FastAPI sur AWS Lambda (Serverless via Mangum).
-            - **IaC :** Terraform pour le déploiement reproductible.
-            - **Sécurité :** IAM Roles, Secrets Manager & CORS restrictif.
-            """)
+    # --- SECTION 0 : Concept ---
+    st.subheader("Concept")
+    col_mission_1, col_mission_2 = st.columns([2, 1])
+    with col_mission_1:
+        st.markdown(
+            """
+            **JobRadar** n'est pas un simple agrégateur d'offres. En plus de collecter les annonces, il uniformise le tout puis applique un moteur de matching pour 
+            les classer selon leur pertinence par rapport à l'utilisateur.
+            
+            Le but est de filtrer automatiquement des milliers d'offres pour n'afficher que celles qui 
+            correspondent réellement à un profil spécifique, en utilisant une double validation : 
+            la compréhension sémantique par l'IA et le respect strict de règles métier (seniorité, stack technologique et d'autres critères).
+            """
+        )
+    with col_mission_2:
+        st.markdown(
+            """
+            **Valeur ajoutée :**
+            - ⏱️ Gain de temps (veille automatisée).
+            - 🎯 Calcul d'un score de matching.
+            - 💰 Coût d'infrastructure quasi nul.
+            """
+        )
 
     st.divider()
-    st.subheader("Extrait Logique : Scoring dbt (Gold Layer)")
-    st.code(
+
+    # --- SECTION 1 : PIPELINE ELT & MEDALLION ---
+    st.subheader("1. Ingestion et pipeline de Données (ELT & Medallion Architecture)")
+
+    col_flow1, col_flow2 = st.columns([1, 1])
+
+    with col_flow1:
+        st.info("**Le flux de données (Data Lifecycle) :**")
+        st.write(
+            "Le parcours de chaque offre depuis sa source jusqu'à l'affichage final est structuré en plusieurs étapes clés :"
+        )
+        st.markdown(
+            """
+            *   **Ingestion (Event-Driven) :** Des fonctions **AWS Lambda** se déclenchent chaque matin pour collecter les données de 4 APIs (France Travail, Adzuna, JSearch, Jooble). 
+            *   **Stockage S3 (Data Lakehouse) :** Les données transitent par trois étages :
+                - **Bronze :** Stockage des JSON bruts (Source of Truth).
+                - **Silver :** Données nettoyées, dédupliquées par hashing et converties en **Parquet** (format colonnaire compressé) par Apache Spark.
+                - **Gold :** Tables finales calculées par dbt, prêtes pour l'affichage.
+            *   **Transformation (Spark & NLP) :** Le traitement est déporté sur **GitHub Actions** pour transformer le brut en vecteurs sémantiques.
+            *   **Analyse (dbt + Athena) :** Les calculs finaux sont exécutés en SQL directement sur les fichiers S3.
+            """
+        )
+
+    with col_flow2:
+        st.success("**Pourquoi ces choix ?**")
+        with st.expander("Le choix de PySpark", expanded=True):
+            st.write(
+                """
+                Bien que le volume de données actuel soit gérable en Pandas, **PySpark** a été choisi pour garantir la 
+                **scalabilité**. Si demain la source passe de 1 000 à 1 000 000 d'offres, le pipeline reste identique. 
+                De plus, Spark permet de distribuer le calcul lourd des embeddings NLP de manière optimale.
+                """
+            )
+        with st.expander("L'Architecture Médaillon"):
+            st.write(
+                """
+                Cette architecture garantit la **traçabilité**. Si un bug survient dans le calcul du score, on peut 
+                repartir de la couche Bronze (brute) pour recalculer sans avoir à ré-interroger les APIs (limitées en nombre de requêtes).
+                """
+            )
+
+    st.divider()
+
+    # --- SECTION 2 : LE MOTEUR DE MATCHING HYBRIDE ---
+    st.subheader("2. Calcul du score de matching")
+    st.markdown(
         """
--- Calcul du score final pondéré (extrait de fct_jobs.sql)
-SELECT 
-    *,
-    -- Pondération 50% Règles / 50% NLP
-    ROUND((
-        (CASE WHEN rules_score > 100 THEN 100 ELSE rules_score END) * 0.5 + 
-        (CASE WHEN semantic_score > 100 THEN 100 ELSE semantic_score END) * 0.5
-    )) AS matching_score
-FROM {{ ref('final_calculation') }}
-        """,
-        language="sql",
+        Le matching repose sur une approche hybride. Pourquoi ? Tandis que l'IA compare la sémantique globale de l'offre à celle de mon profil idéal, les règles métier assurent que les critères essentiels sont respectés.
+        Par exemple, une offre peut être très proche sémantiquement mais être un stage (veto). L'approche hybride permet de combiner la flexibilité de l'IA avec la rigueur des règles métier, offrant ainsi un score de matching plus fiable et pertinent.
+        """
+    )
+
+    m1, m2 = st.columns(2)
+
+    with m1:
+        st.markdown("**🧠 Pilier Sémantique (IA/NLP)**")
+        st.write(
+            """
+            Pour évaluer la pertinence d'une offre,
+            on transforme chaque offre en un vecteur mathématique (Embeddings via `all-MiniLM-L6-v2`). 
+            On compare ensuite ce vecteur à celui de mon 'Profil Idéal' (une offre d'emploi "idéale" selon mes critères) via une **Similarité Cosinus**. 
+            On obtient ainsi un score de 0 à 100 indiquant à quel point l'offre correspond à mes attentes, même si les mots exacts diffèrent : par exemple, un poste de 'Data Engineer' peut être très proche d'un 'Ingénieur Data'. 
+            même si les mots-clés exacts diffèrent.
+            
+            La formule mathématique de la Similarité Cosinus est la suivante :
+            """
+        )
+        st.latex(
+            r"\text{Similarity} = \frac{\mathbf{A} \cdot \mathbf{B}}{\|\mathbf{A}\| \|\mathbf{B}\|}"
+        )
+
+    with m2:
+        st.markdown("**📋 Pilier Métier (Règles SQL)**")
+        st.write(
+            """
+            L'IA est complétée par des règles déterministes codées en SQL avec **dbt Core**. Cela permet de s'assurer que des critères essentiels sont respectés, indépendamment de la formulation de l'offre. Par exemple :
+            Si une offre mentionne 'Stage' ou 'Alternance' dans la description alors que le titre est ambigu, elle reçoit un veto.
+            De plus, cela permet de valoriser des éléments précisément définis qui pourraient être sous-représentés dans le score sémantique (ex: mention d'un certain nombre d'années d'expérience minimum). 
+            """
+        )
+
+    st.markdown("---")
+
+    st.markdown("**Formule du Score Final :**")
+    st.latex(r"Score = (Score_{IA} \times 0.5) + (Score_{règles} \times 0.5)")
+
+    st.divider()
+
+    # --- SECTION 3 : CLOUD & FINOPS ---
+    st.subheader("3. Architecture Cloud & FinOps")
+
+    col_explanation, col_finops = st.columns([1, 1])
+
+    with col_explanation:
+        st.markdown(
+            """
+            L'architecture est entièrement **Serverless** et **Event-Driven**. 
+            
+            **Comment le coût reste à 0€ ?**
+            - **AWS Lambda :** Facturation à la milliseconde d'exécution. Les runs quotidiens rentrent largement dans le Free Tier permanent.
+            - **GitHub Actions as Compute :** Au lieu de payer un serveur EC2 ou un cluster Spark (très cher), j'utilise les ressources gratuites de GitHub Actions pour exécuter les calculs Spark et dbt.
+            - **Athena & Parquet :** En stockant en Parquet (compressé), Athena ne scanne que quelques Ko par requête, ce qui rend le coût de recherche quasi nul.
+            - **S3 Lifecycle :** Suppression automatique des logs et fichiers temporaires après 7 jours.
+            """
+        )
+
+    with col_finops:
+        st.success("**Points forts de l'Infrastructure :**")
+        st.markdown(
+            """
+            - **IaC (Infrastructure as Code) :** Tout l'environnement AWS est déployé via **Terraform**.
+            - **CI/CD :** Déploiement automatique dès qu'un changement est push sur GitHub.
+            - **Sécurité :** Utilisation d'AWS Secrets Manager et de rôles IAM restrictifs.
+            """
+        )
+
+    st.divider()
+
+    # --- SECTION 4 : STACK TECHNIQUE EXHAUSTIVE ---
+    st.subheader("4. Stack Technologique Complète")
+
+    st.table(
+        {
+            "": [
+                "Langages",
+                "Cloud (AWS)",
+                "Data Engineering",
+                "Intelligence Artificielle",
+                "Infra & DevOps",
+                "Visualisation",
+            ],
+            "Technologies exploitées": [
+                "Python 3.11, SQL (Presto/Athena), PySpark",
+                "S3, Lambda, Athena, Glue (Catalog), EventBridge, IAM, ECR, Secrets Manager",
+                "dbt Core, Spark SQL, Parquet, Delta-like partitioning",
+                "Sentence-Transformers (NLP), Scikit-learn (Cosinus Similarity), Pandas",
+                "Terraform (IaC), Docker, GitHub Actions (CI/CD), Git",
+                "Streamlit, Streamlit Cloud",
+            ],
+        }
     )
