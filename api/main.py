@@ -1,5 +1,6 @@
 import logging
 import os
+import time
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, Header, HTTPException
@@ -7,6 +8,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from mangum import Mangum
 from pyathena import connect
 from pyathena.cursor import DictCursor
+import boto3
 
 # Chargement des variables d'environnement (Utile pour le développement local)
 load_dotenv()
@@ -57,6 +59,49 @@ def health_check():
     return {"status": "healthy", "service": "jobradar-api-serverless"}
 
 
+@app.get("/health/pipeline", tags=["Health"])
+def get_pipeline_health():
+    """Récupère le dernier statut du pipeline depuis le catalogue Glue/Athena."""
+    try:
+        athena_client = boto3.client('athena', region_name='eu-west-3') # Remplace par ta région
+        
+        # 1. Lancer la requête
+        query = "SELECT status, run_at, records_count FROM jobradar_db.pipeline_logs ORDER BY run_at DESC LIMIT 1"
+        response = athena_client.start_query_execution(
+            QueryString=query,
+            QueryExecutionContext={'Database': 'jobradar_db'},
+            ResultConfiguration={'OutputLocation': 's3://jobradar-athena-results-manuel-cloud/health-checks/'} 
+        )
+        
+        query_execution_id = response['QueryExecutionId']
+        
+        # 2. Attendre le résultat (Polling)
+        state = 'RUNNING'
+        while state in ['QUEUED', 'RUNNING']:
+            response_status = athena_client.get_query_execution(QueryExecutionId=query_execution_id)
+            state = response_status['QueryExecution']['Status']['State']
+            if state in ['FAILED', 'CANCELLED']:
+                raise Exception(f"Athena query failed: {response_status['QueryExecution']['Status'].get('StateChangeReason')}")
+            time.sleep(1) # Attendre 1 seconde avant de revérifier
+            
+        # 3. Récupérer les résultats
+        results = athena_client.get_query_results(QueryExecutionId=query_execution_id)
+        
+        # 4. Formater la réponse
+        rows = results['ResultSet']['Rows']
+        if len(rows) > 1: # S'il y a des résultats (la première ligne contient les noms de colonnes)
+            data_row = rows[1]['Data']
+            return {
+                "status": data_row[0]['VarCharValue'],
+                "last_run": data_row[1]['VarCharValue'], # Tu devras peut-être formater cette date
+                "count": int(data_row[2]['VarCharValue'])
+            }
+        else:
+            return {"status": "UNKNOWN", "last_run": "N/A", "count": 0}
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+ 
 @app.get("/jobs", tags=["Data"])
 def get_jobs(limit: int = 200, x_api_key: str = Header(None)):
     """

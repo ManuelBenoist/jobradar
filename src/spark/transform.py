@@ -48,6 +48,25 @@ def create_spark_session() -> SparkSession:
         .getOrCreate()
     )
 
+def log_pipeline_status(spark, status, count=0, error=""):
+    """Écrit le statut du run dans S3 pour l'observabilité."""
+    from datetime import datetime
+    import uuid
+
+    # Création d'une ligne de log unique
+    log_entry = [{
+        "run_id": str(uuid.uuid4()),
+        "run_at": datetime.now(),
+        "status": status, # 'SUCCESS' ou 'FAILED'
+        "source_name": "Silver_Pipeline",
+        "records_count": count,
+        "error_message": error[:500] # On tronque pour éviter les logs trop lourds
+    }]
+    
+    log_df = spark.createDataFrame(log_entry)
+    # On écrit en 'append' dans le dossier surveillé par ta table Athena
+    log_df.write.mode("append").parquet("s3a://jobradar-processed-manuel-cloud/logs/")
+    logger.info(f"📊 Statut enregistré : {status}")
 
 # --- ÉTAPE 1 : EXTRACTION & STAGING (BRONZE) ---
 
@@ -340,8 +359,8 @@ def apply_silver_logic(df: DataFrame) -> DataFrame:
         "data_quality_score",
         F.when(F.col("source_name") == "France Travail", F.lit(1.0))
         .when(
-            F.col("source_name").isin("Adzuna", "Jooble"), F.lit(0.6)
-        )  # Les deux sont pénalisés à 60%
+            F.col("source_name").isin("Adzuna", "Jooble"), F.lit(0.75)
+        )  # Les deux sont pénalisés à 75%
         .when(F.col("source_name") == "JSearch", F.lit(1.0))
         .otherwise(F.lit(0.8)),
     )
@@ -432,9 +451,11 @@ def run_pipeline() -> None:
         raw_df = df_adz.unionByName(df_ft).unionByName(df_js).unionByName(df_jb)
         df_silver = apply_silver_logic(raw_df)
 
+        final_count = df_silver.count() 
+        
         # Écriture partitionnée au format Parquet
         logger.info(
-            f"🚀 Écriture de {df_silver.count()} offres uniques vers la couche Silver..."
+            f"🚀 Écriture de {final_count} offres uniques vers la couche Silver..."
         )
         df_silver.select(silver_columns).write.mode("overwrite").partitionBy(
             "ingestion_date"
@@ -450,9 +471,11 @@ def run_pipeline() -> None:
                 "OutputLocation": "s3://jobradar-athena-results-manuel-cloud/athena_temp/"
             },
         )
+        log_pipeline_status(spark, "SUCCESS", count=final_count)
         logger.info("✅ Pipeline Silver terminé avec succès !")
 
     except Exception as e:
+        log_pipeline_status(spark, "FAILED", error=str(e))
         logger.error(f"❌ Échec critique du pipeline : {str(e)}")
         raise
 

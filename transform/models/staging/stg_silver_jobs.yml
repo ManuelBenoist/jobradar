@@ -34,4 +34,4 @@ models:
           Indice de confiance de la donnée source (0.0 à 1.0).
           Sert de coefficient modérateur pour le score de matching final.
           - 1.0 : France Travail (Complet), JSearch (Complet)
-          - 0.6 : Adzuna/Jooble (Tronqué/Pollué)
+          - 0.75 : Adzuna/Jooble (Tronqué/Pollué)

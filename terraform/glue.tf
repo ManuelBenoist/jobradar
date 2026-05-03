@@ -58,6 +58,10 @@ resource "aws_glue_catalog_table" "processed_jobs" {
       type = "string"
     }
     columns {
+      name = "data_quality_score"
+      type = "double"
+    }
+    columns {
       name = "url"
       type = "string"
     }
@@ -103,6 +107,53 @@ resource "aws_glue_catalog_table" "processed_jobs" {
   partition_keys {
     name = "ingestion_date"
     type = "string"
+  }
+}
+
+# --- TABLE DE LOGS POUR L'OBSERVABILITÉ ---
+resource "aws_glue_catalog_table" "pipeline_logs" {
+  name          = "pipeline_logs"
+  database_name = aws_glue_catalog_database.jobradar_db.name
+  table_type    = "EXTERNAL_TABLE"
+
+  parameters = {
+    "classification" = "parquet"
+  }
+
+  storage_descriptor {
+    location      = "s3://jobradar-processed-manuel-cloud/logs/"
+    input_format  = "org.apache.hadoop.hive.ql.io.parquet.MapredParquetInputFormat"
+    output_format = "org.apache.hadoop.hive.ql.io.parquet.MapredParquetOutputFormat"
+
+    ser_de_info {
+      name                  = "parquet-ser-de"
+      serialization_library = "org.apache.hadoop.hive.ql.io.parquet.serde.ParquetHiveSerDe"
+    }
+
+    columns {
+      name = "run_id"
+      type = "string"
+    }
+    columns {
+      name = "run_at"
+      type = "timestamp"
+    }
+    columns {
+      name = "status"
+      type = "string"
+    } # SUCCESS | FAILED
+    columns {
+      name = "source_name"
+      type = "string"
+    }
+    columns {
+      name = "records_count"
+      type = "int"
+    }
+    columns {
+      name = "error_message"
+      type = "string"
+    }
   }
 }
 

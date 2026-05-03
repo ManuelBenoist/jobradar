@@ -13,6 +13,18 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 
+def fetch_pipeline_status():
+    """Appelle l'API pour connaître l'état de santé du système."""
+    API_URL = st.secrets["API_URL"]
+    try:
+        response = requests.get(f"{API_URL}/health/pipeline", timeout=5)
+        if response.status_code == 200:
+            return response.json()
+        return None
+    except:
+        return None
+
+
 # --- STYLE CSS PERSONNALISÉ ---
 st.markdown(
     """
@@ -82,7 +94,7 @@ if data_raw and "jobs" in data_raw:
 # --- HEADER ---
 st.title("📡 JobRadar Live")
 st.caption(
-    "Veille automatisée de recherche d'emplois Data & DevOps | Pipeline ELT Serverless sur AWS"
+    "Veille automatisée de recherche d'emplois Data & DevOps, personnalisé pour Manuel B.| Pipeline ELT Serverless sur AWS"
 )
 
 tab_radar, tab_tech = st.tabs(["🎯 Radar des offres", "🏗️ Architecture du projet"])
@@ -132,6 +144,16 @@ with tab_radar:
         new_jobs_count = len(df[df["published_at"] >= limit_date])
 
         # 1. KPI CARDS
+        health = fetch_pipeline_status()
+        # Appel du statut de la pipeline et affichage du bandeau juste sous le titre
+        if health:
+            if health.get("status") == "SUCCESS":
+                st.caption(
+                    f"🟢 Pipeline saine : dernière synchronisation avec AWS Athena le {health.get('last_run')}, {health.get('count')} offres ingérées au total."
+                )
+            else:
+                st.caption("🔴 **Alerte Pipeline** | Échec détecté sur le dernier run. Les données peuvent être obsolètes.")
+        
         k1, k2, k3, k4 = st.columns(4)
         k1.metric("Offres analysées", len(df))
         k2.metric("Nouveautés (<48h)", f"{new_jobs_count}")
@@ -221,10 +243,6 @@ with tab_radar:
             ),
             width="stretch",
             hide_index=True,
-        )
-
-        st.caption(
-            f"Dernière synchronisation avec AWS Athena : {datetime.now().strftime('%d/%m/%Y à %H:%M')}"
         )
 
     else:
