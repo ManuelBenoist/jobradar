@@ -1,17 +1,15 @@
-# 1. Utilisation de l'image de base officielle AWS pour Lambda (Python 3.11)
+# Image de base optimisée pour AWS Lambda (Python 3.11)
 FROM public.ecr.aws/lambda/python:3.11
 
-# 2. Variable d'environnement pour que Python ne crée pas de fichiers .pyc
+# Désactivation de la génération de fichiers .pyc pour optimiser l'espace
 ENV PYTHONDONTWRITEBYTECODE=1
 
-# 3. Copier le fichier des dépendances
+# Installation des dépendances
 COPY requirements-api.txt ${LAMBDA_TASK_ROOT}
-
-# 4. Installation des dépendances directement dans l'environnement de la Lambda
 RUN pip install --no-cache-dir -r requirements-api.txt
 
-# 5. Copier le code source de l'API
+# Copie du code source dans le dossier de travail Lambda
 COPY . ${LAMBDA_TASK_ROOT}
 
-# 6. Le point d'entrée (HANDLER)
+# Définition du point d'entrée pour Mangum (FastAPI wrapper)
 CMD [ "main.handler" ]
