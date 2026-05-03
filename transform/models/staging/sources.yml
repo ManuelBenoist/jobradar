@@ -31,3 +31,6 @@ sources:
 
           - name: salary_min_numeric
             description: "Valeur numérique du salaire annuel minimum (en Euros)."
+          
+          - name: data_quality_score
+            description: "Score de qualité de la donnée basé sur la source (0.0 à 1.0)."

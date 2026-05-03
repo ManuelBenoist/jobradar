@@ -201,9 +201,10 @@ SELECT
         ELSE ROUND(raw_nlp_score) 
     END AS semantic_score,
     
-    -- Score final pondéré (50% Règles / 50% NLP)
+    -- Score final pondéré avec Graceful Degradation (50% Règles / 50% NLP) * Coefficient de qualité source
     ROUND((
-        (CASE WHEN raw_rule_score > 100 THEN 100 WHEN raw_rule_score < 0 THEN 0 ELSE raw_rule_score END) * 0.5 + 
-        (CASE WHEN raw_nlp_score > 100 THEN 100 WHEN raw_nlp_score < 0 THEN 0 ELSE raw_nlp_score END) * 0.5
-    )) AS matching_score
+            (CASE WHEN raw_rule_score > 100 THEN 100 WHEN raw_rule_score < 0 THEN 0 ELSE raw_rule_score END) * 0.5 + 
+            (CASE WHEN raw_nlp_score > 100 THEN 100 WHEN raw_nlp_score < 0 THEN 0 ELSE raw_nlp_score END) * 0.5
+        ) * data_quality_score
+    ) AS matching_score
 FROM final_calculation

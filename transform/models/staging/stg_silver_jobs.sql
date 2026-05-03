@@ -18,6 +18,7 @@ renamed AS (
         job_id,
         source_name,
         url,
+        CAST(data_quality_score AS DOUBLE) AS data_quality_score,
         ingestion_date,
 
         -- Informations de l'offre

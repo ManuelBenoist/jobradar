@@ -28,3 +28,10 @@ models:
         tests:
           - accepted_values:
               values: [true, false]
+
+      - name: data_quality_score
+        description: >
+          Indice de confiance de la donnée source (0.0 à 1.0).
+          Sert de coefficient modérateur pour le score de matching final.
+          - 1.0 : France Travail (Complet), JSearch (Complet)
+          - 0.6 : Adzuna/Jooble (Tronqué/Pollué)

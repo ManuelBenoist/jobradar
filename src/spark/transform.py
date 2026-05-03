@@ -173,6 +173,21 @@ def apply_silver_logic(df: DataFrame) -> DataFrame:
         "🧹 Exécution de la logique Silver (Nettoyage & Feature Engineering)..."
     )
 
+    # Nettoyage spécial Adzuna et Jooble
+    logger.info("🧹 Nettoyage spécifique et Data Quality Scoring (Adzuna & Jooble)...")
+    df = df.withColumn(
+        "description", F.regexp_replace(F.col("description"), r"&nbsp;", " ")
+    )
+    # Retrait des points de suspension de fin pour Adzuna et Jooble
+    # On cible les "..." qui traînent en fin de chaîne
+    df = df.withColumn(
+        "description",
+        F.when(
+            F.col("source_name").isin("Adzuna", "Jooble"),
+            F.regexp_replace(F.col("description"), r"\.\.\.\s*$", ""),
+        ).otherwise(F.col("description")),
+    )
+
     # 1. Normalisation temporelle et nettoyage HTML
     df = df.withColumn("published_at", F.to_timestamp(F.col("created_at")))
     df = df.withColumn(
@@ -320,6 +335,17 @@ def apply_silver_logic(df: DataFrame) -> DataFrame:
         ),
     )
 
+    # Ajout du Data Quality Score (DQS)
+    df = df.withColumn(
+        "data_quality_score",
+        F.when(F.col("source_name") == "France Travail", F.lit(1.0))
+        .when(
+            F.col("source_name").isin("Adzuna", "Jooble"), F.lit(0.6)
+        )  # Les deux sont pénalisés à 60%
+        .when(F.col("source_name") == "JSearch", F.lit(1.0))
+        .otherwise(F.lit(0.8)),
+    )
+
     # 7. Déduplication par empreinte (Window Function)
     df = df.withColumn(
         "dedup_id",
@@ -378,6 +404,7 @@ def run_pipeline() -> None:
         "url",
         "published_at",
         "source_name",
+        "data_quality_score",
         "extracted_skills",
         "salary_min_numeric",
         "exp_min_required",
