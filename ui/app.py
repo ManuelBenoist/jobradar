@@ -14,11 +14,13 @@ st.set_page_config(
 )
 
 
+@st.cache_data(ttl=300)  # On cache le statut 5 min pour ne pas spammer l'API
 def fetch_pipeline_status():
     """Appelle l'API pour connaître l'état de santé du système."""
-    API_URL = st.secrets["API_URL"]
+    BASE_URL = st.secrets["API_URL"].replace("/jobs", "")
+    clean_url = f"{BASE_URL.rstrip('/')}/health/pipeline"
     try:
-        response = requests.get(f"{API_URL}/health/pipeline", timeout=5)
+        response = requests.get(clean_url, timeout=5)
         if response.status_code == 200:
             return response.json()
         return None
@@ -30,11 +32,80 @@ def fetch_pipeline_status():
 st.markdown(
     """
     <style>
-    .main { background-color: #f8f9fa; }
-    .stMetric { background-color: #ffffff; border: 1px solid #e0e0e0; padding: 15px; border-radius: 10px; }
-    .stTabs [data-baseweb="tab-list"] { gap: 24px; }
-    .stTabs [data-baseweb="tab"] { font-weight: 600; color: #4b5563; }
-    .stTabs [aria-selected="true"] { color: #2563eb !important; border-color: #2563eb !important; }
+    /* Utilisation des variables de thème Streamlit pour le fond et le texte */
+    .stApp { background-color: var(--background-color); }
+    
+    /* KPI Cards (Metrics) adaptatives */
+    [data-testid="stMetric"] {
+        background-color: var(--secondary-background-color);
+        border: 1px solid rgba(128, 128, 128, 0.2);
+        padding: 15px;
+        border-radius: 10px;
+        color: var(--text-color);
+    }
+
+    /* Force l'étirement des colonnes pour la même hauteur */
+    [data-testid="column"] {
+        display: flex !important;
+    }
+    [data-testid="column"] > div {
+        flex-grow: 1 !important;
+        display: flex !important;
+        flex-direction: column !important;
+    }
+    [data-testid="stVerticalBlock"] {
+        flex-grow: 1 !important;
+        display: flex !important;
+        flex-direction: column !important;
+    }
+
+    /* Job Cards adaptatives */
+    .job-card {
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        position: relative;
+        background-color: var(--secondary-background-color);
+        border: 1px solid rgba(128, 128, 128, 0.2);
+        padding: 20px;
+        border-radius: 12px;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        height: 100%;
+        transition: all 0.3s ease;
+        color: var(--text-color);
+    }
+    
+    .job-card:hover {
+        border-color: #2563eb;
+        box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
+        transform: translateY(-2px);
+    }
+    
+    .card-title { font-size: 1.1rem; font-weight: 700; color: var(--text-color); margin-bottom: 5px; padding-right: 60px; }
+    .card-company { color: var(--text-color); opacity: 0.8; font-weight: 600; font-size: 0.9rem; margin-bottom: 10px; }
+    .card-source { position: absolute; top: 15px; right: 15px; font-style: italic; font-size: 0.7rem; color: var(--text-color); opacity: 0.6; }
+    
+    .badge {
+        padding: 4px 8px;
+        border-radius: 6px;
+        font-size: 0.75rem;
+        font-weight: 700;
+        display: inline-block;
+        margin-bottom: 10px;
+        width: fit-content;
+    }
+    
+    .label-tag {
+        display: inline-block;
+        font-size: 0.7rem;
+        padding: 2px 6px;
+        border-radius: 4px;
+        margin-right: 4px;
+        margin-bottom: 4px;
+        border: 1px solid rgba(128, 128, 128, 0.2);
+    }
+    .pos-tag { background-color: rgba(0, 255, 0, 0.1); color: #22c55e; }
+    .neg-tag { background-color: rgba(255, 0, 0, 0.1); color: #ef4444; }
     </style>
     """,
     unsafe_allow_html=True,
@@ -192,6 +263,54 @@ with tab_radar:
                 axis=1,
             )
             filtered_df = filtered_df[mask]
+
+        # --- TOP MATCHES CARDS ---
+        st.subheader("🎯 Top 3 des meilleures offres")
+
+        # On récupère les 3 meilleures offres depuis filtered_df
+        top_jobs = filtered_df.nlargest(3, "matching_score")
+        cols = st.columns(3)
+
+        for idx, (_i, row) in enumerate(top_jobs.iterrows()):
+            with cols[idx]:
+                pos_html = ""
+                raw_pos = row.get("positive_labels")
+                if pd.notnull(raw_pos) and raw_pos != "":
+                    labels = raw_pos.split(",") if isinstance(raw_pos, str) else raw_pos
+                    for label in labels[:2]:
+                        pos_html += (
+                            f'<span class="label-tag pos-tag">▲ {label.strip()}</span>'
+                        )
+
+                neg_html = ""
+                raw_neg = row.get("negative_labels")
+                if pd.notnull(raw_neg) and raw_neg != "":
+                    labels = raw_neg.split(",") if isinstance(raw_neg, str) else raw_neg
+                    for label in labels[:1]:
+                        neg_html += (
+                            f'<span class="label-tag neg-tag">▼ {label.strip()}</span>'
+                        )
+
+                bg_color = "#dcfce7" if row["matching_score"] >= 80 else "#fef9c3"
+                text_color = "#166534" if row["matching_score"] >= 80 else "#854d0e"
+                title_disp = str(row.get("title", "Poste sans titre"))
+
+                card_html = (
+                    f'<div class="job-card">'
+                    f"<div>"  # Bloc haut
+                    f'<div class="card-source">{row.get("platform", "Source")}</div>'
+                    f'<div class="badge" style="background-color: {bg_color}; color: {text_color};">Match : {row["matching_score"]}%</div>'
+                    f'<div class="card-title">{title_disp[:45]}{"..." if len(title_disp) > 45 else ""}</div>'
+                    f'<div class="card-company">🏢 {row.get("company_name", "N/A")}</div>'
+                    f'<div style="margin: 10px 0;">{pos_html}{neg_html}</div>'
+                    f"</div>"
+                    f'<div style="margin-top: auto; padding-top: 15px;">'
+                    f'<a href="{row.get("original_url", "#")}" target="_blank" style="text-decoration: none;">'
+                    f'<button style="width: 100%; padding: 8px; background-color: #2563eb; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">'
+                    f"Détails & Postuler 🔗</button></a></div></div>"
+                )
+                st.markdown(card_html, unsafe_allow_html=True)
+        st.divider()
 
         # 3. AFFICHAGE DU TABLEAU (Config complète conservée)
         st.dataframe(
