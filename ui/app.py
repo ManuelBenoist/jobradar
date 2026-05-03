@@ -447,13 +447,29 @@ with tab_tech:
         )
         st.markdown(
             """
-            *   **Ingestion (Event-Driven) :** Des fonctions **AWS Lambda** se déclenchent chaque matin pour collecter les données de 4 APIs (France Travail, Adzuna, JSearch, Jooble). 
-            *   **Stockage S3 (Data Lakehouse) :** Les données transitent par trois étages :
-                - **Bronze :** Stockage des JSON bruts (Source of Truth).
-                - **Silver :** Données nettoyées, dédupliquées par hashing et converties en **Parquet** (format colonnaire compressé) par Apache Spark.
-                - **Gold :** Tables finales calculées par dbt, prêtes pour l'affichage.
-            *   **Transformation (Spark & NLP) :** Le traitement est déporté sur **GitHub Actions** pour transformer le brut en vecteurs sémantiques.
-            *   **Analyse (dbt + Athena) :** Les calculs finaux sont exécutés en SQL directement sur les fichiers S3.
+            *   **1. Orchestration & Collecte (Trigger) :** 
+                - **Déclencheur :** Un événement **AWS EventBridge** (Cron) réveille chaque matin des fonctions **AWS Lambda**.
+                - **Action :** Ces fonctions interrogent les 4 APIs (France Travail, Adzuna, JSearch, Jooble) et déchargent les données brutes dans le **Bucket S3 (Layer Bronze)** au format JSON.
+            
+            *   **2. Processing Distribué (Compute - Layer Silver) :** 
+                - **Calcul :** Le workflow est piloté par **GitHub Actions**, qui déploie des workers éphémères exécutant **Apache Spark**.
+                - **Action :** Spark lit la couche Bronze, effectue le nettoyage, la déduplication par hashing (SHA-256) et génère les embeddings NLP.
+                - **Stockage :** Les données sont réécrites dans **S3 (Layer Silver)** au format **Parquet**, optimisé pour la lecture colonnaire.
+
+            *   **3. Modélisation & Scoring (Compute - Layer Gold) :** 
+                - **Calcul :** **dbt Core** (exécuté sur GitHub Actions) orchestre des requêtes SQL complexes sur **AWS Athena**.
+                - **Action :** dbt transforme la donnée Silver en tables métier Gold (calcul du score final, labels, agrégations).
+                - **Stockage :** Les résultats finaux sont catalogués dans **AWS Glue** et stockés en **S3 (Layer Gold)**.
+
+            *   **4. Exposition & Service (L'API) :** 
+                - **Accès :** Une API **FastAPI** (hébergée sur AWS Lambda via Mangum) sert de passerelle sécurisée.
+                - **Action :** Elle exécute des requêtes SQL via Athena pour récupérer uniquement les données nécessaires au Dashboard Streamlit, garantissant une latence minimale.
+
+            *  **5. Visualisation (Dashboard) :**
+                - **Outil :** Le dashboard est développé en **Streamlit** et hébergé sur **Streamlit Cloud**.
+                - **Action :** Il interroge l'API pour afficher les offres filtrées, les scores de matching et les KPIs en temps réel.
+
+            Cette architecture en **Médaille** (Bronze, Silver, Gold) garantit une séparation claire des responsabilités, une traçabilité totale des données à chaque étape et une scalabilité optimale pour gérer l'évolution du volume d'offres.
             """
         )
 
