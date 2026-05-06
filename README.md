@@ -56,6 +56,35 @@ Le projet est conçu pour un coût de fonctionnement approchant des **0€** :
 | **Infra & DevOps** | Terraform (IaC), Docker, GitHub Actions (CI/CD) |
 | **Visualisation** | Streamlit, Streamlit Cloud |
 
+## 🧪 Testing & Quality Assurance
+
+Le projet suit une stratégie de test multicouche, exécutée automatiquement en CI/CD via GitHub Actions.
+
+### Couverture
+
+| Type | Emplacement | Commande |
+|------|-------------|----------|
+| Tests unitaires Python | `tests/` (miroir de `src/`) | `pytest tests/` |
+| Tests d'intégration | `tests/integration/` | `pytest tests/integration/` |
+| Tests de données dbt | `transform/tests/*.sql` + `.yml` | `cd transform && dbt test` |
+| Linting | — | `ruff check .` |
+| Couverture | — | `pytest --cov=src --cov-report=term-missing` |
+
+### Conventions
+
+- **Colonnes garanties** (`job_id`, `published_at`, `matching_score`, `ingestion_date`, `data_quality_score`) : tests `not_null` bloquants — ces champs sont toujours produits par le pipeline.
+- **Colonnes optionnelles** (`title`, `company_name`, `url`, `description`) : tests `not_null` avec `severity: warn` — signalés sans bloquer le pipeline, car certaines API peuvent retourner des champs vides.
+- **Tests dbt personnalisés** : validation des ranges de score (0–100), format des labels, présence des URLs. Les tests non critiques sont en `severity: warn`.
+- **Contrôle de schéma** : chaque job Lambda vérifie la structure de la réponse API, et le pipeline Spark valide les colonnes avant écriture Silver.
+
+### CI/CD
+
+| Workflow | Déclencheur | Étapes |
+|----------|-------------|--------|
+| `ci.yml` | Push/PR sur `main`, `develop` | Ruff → Pytest unitaire + couverture → tests Spark |
+| `data_pipeline.yml` | Quotidien 05:15 UTC | Spark Silver → dbt Gold → dbt test |
+| `deploy_infra.yml` | Push sur `terraform/` ou `src/lambda/` | Terraform init & apply |
+
 ## 🚀 Installation & Déploiement
 1. **Infra** : `terraform apply` (crée l'intégralité du Data Lake et des rôles IAM).
 2. **Profil** : Générer votre vecteur de référence en modifiant l'offre idéale type via `src/scripts/generate_profile.py`.
