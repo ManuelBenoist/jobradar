@@ -3,7 +3,7 @@ version: 2
 models:
   - name: stg_silver_jobs
     description: >
-      Modèle de staging qui expose les données Silver. 
+      Modèle de staging qui expose les données Silver.
       Il sert d'interface de nettoyage final avant le calcul du matching score.
     columns:
       - name: job_id
@@ -12,6 +12,41 @@ models:
           - unique
           - not_null
 
+      - name: title
+        description: "Intitulé du poste."
+        tests:
+          - not_null:
+              severity: warn
+
+      - name: company_name
+        description: "Nom de l'entreprise."
+        tests:
+          - not_null:
+              severity: warn
+
+      - name: url
+        description: "URL de l'offre originale."
+        tests:
+          - not_null:
+              severity: warn
+
+      - name: description
+        description: "Description complète de l'offre."
+        tests:
+          - not_null:
+              severity: warn
+
+      - name: published_at
+        description: "Date de publication normalisée."
+        tests:
+          - not_null
+
+      - name: source_name
+        description: "Source de l'offre."
+        tests:
+          - accepted_values:
+              values: ['Adzuna', 'France Travail', 'Jooble', 'JSearch']
+
       - name: ingestion_date
         description: "Clé de partitionnement correspondant à la date de traitement Spark."
         tests:
@@ -19,7 +54,7 @@ models:
 
       - name: description_vector
         description: "Vecteur d'embedding (array) généré par Sentence-Transformers."
-        
+
       - name: extracted_skills
         description: "Liste des compétences techniques détectées par analyse de mots-clés."
 

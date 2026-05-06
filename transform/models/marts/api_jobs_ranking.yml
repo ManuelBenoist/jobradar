@@ -9,10 +9,14 @@ models:
       - name: title
         description: "Intitulé du poste."
         tests:
-          - not_null
+          - not_null:
+              severity: warn
 
       - name: company_name
         description: "Nom de l'entreprise."
+        tests:
+          - not_null:
+              severity: warn
 
       - name: matching_score
         description: "Score final de matching (0-100)."

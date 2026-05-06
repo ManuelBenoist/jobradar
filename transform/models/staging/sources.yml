@@ -3,7 +3,7 @@ version: 2
 sources:
   - name: glue_silver
     description: >
-      Zone de passage entre Spark (Processing) et dbt (Modeling). 
+      Zone de passage entre Spark (Processing) et dbt (Modeling).
       Ces données résident dans le catalogue AWS Glue et sont partitionnées par date.
     database: awsdatacatalog
     schema: jobradar_db
@@ -29,8 +29,26 @@ sources:
             tests:
               - not_null
 
+          - name: title
+            description: "Intitulé du poste."
+            tests:
+              - not_null:
+                  severity: warn
+
+          - name: company_name
+            description: "Nom de l'entreprise recruteuse."
+            tests:
+              - not_null:
+                  severity: warn
+
+          - name: url
+            description: "URL de l'offre originale."
+            tests:
+              - not_null:
+                  severity: warn
+
           - name: salary_min_numeric
             description: "Valeur numérique du salaire annuel minimum (en Euros)."
-          
+
           - name: data_quality_score
             description: "Score de qualité de la donnée basé sur la source (0.0 à 1.0)."

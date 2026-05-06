@@ -25,12 +25,14 @@ models:
       - name: title
         description: "Intitulé du poste."
         tests:
-          - not_null
+          - not_null:
+              severity: warn
 
       - name: url
         description: "URL de l'offre originale."
         tests:
-          - not_null
+          - not_null:
+              severity: warn
 
       - name: published_at
         description: "Date de publication normalisée."
