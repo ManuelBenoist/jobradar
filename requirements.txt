@@ -17,4 +17,7 @@ streamlit==1.56.0
 # --- Quality & Dev ---
 ruff==0.15.11
 pytest==9.0.3
+pytest-cov==7.1.0
+httpx==0.28.1
+moto==5.1.2
 pip-audit==2.7.3
