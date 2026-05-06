@@ -84,6 +84,7 @@ class TestLambdaHandler:
     def test_successful_invocation(self, mock_s3_client, sample_event):
         mod.s3_client = mock_s3_client
         os.environ["ADZUNA_APP_ID"] = "test_id"
+        os.environ["ADZUNA_APP_KEY"] = "test_key"
 
         with patch.object(mod, "fetch_adzuna_jobs") as mock_fetch:
             mock_fetch.return_value = {
@@ -114,6 +115,7 @@ class TestLambdaHandler:
     def test_fetch_exception_propagates(self, mock_s3_client, sample_event):
         mod.s3_client = mock_s3_client
         os.environ["ADZUNA_APP_ID"] = "test_id"
+        os.environ["ADZUNA_APP_KEY"] = "test_key"
         with patch.object(mod, "fetch_adzuna_jobs", side_effect=Exception("API down")):
             with pytest.raises(Exception, match="API down"):
                 lambda_handler(sample_event, None)
