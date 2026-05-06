@@ -43,6 +43,10 @@ def fetch_jooble_jobs(keyword: str, where: str, api_key: str) -> Dict[str, Any]:
 
         # Jooble renvoie les résultats dans la clé 'jobs'
         results = data.get("jobs", [])
+        if not isinstance(results, list):
+            raise ValueError(
+                f"Schéma invalide : 'jobs' devrait être une liste, reçu {type(results).__name__}"
+            )
 
         return {
             "count": data.get("totalCount", len(results)),
@@ -74,6 +78,14 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
 
         # 3. Extraction des données
         data = fetch_jooble_jobs(keyword, where, api_key)
+
+        # Contrôle de schéma : validation du payload retourné
+        if "results" not in data:
+            raise ValueError("Schéma invalide : clé 'results' absente du payload")
+        if not isinstance(data.get("results"), list):
+            raise ValueError(
+                f"Schéma invalide : 'results' devrait être une liste, reçu {type(data.get('results')).__name__}"
+            )
 
         # 4. Organisation du stockage S3 (Architecture Médaillon)
         now = datetime.now()

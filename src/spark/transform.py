@@ -26,6 +26,28 @@ SILVER_PATH = "s3a://jobradar-processed-manuel-cloud/silver_jobs"
 # Cache pour le modèle NLP (Singleton pattern pour limiter l'empreinte mémoire)
 model_cache = None
 
+# Colonnes requises pour chaque étape du pipeline
+REQUIRED_STAGE_COLUMNS = [
+    "job_id", "title", "company_name", "description", "location",
+    "created_at", "url", "source_name",
+]
+SILVER_OUTPUT_COLUMNS = [
+    "job_id", "title", "company_name", "location_clean", "description",
+    "url", "published_at", "source_name", "data_quality_score",
+    "extracted_skills", "salary_min_numeric", "exp_min_required",
+    "is_junior", "is_senior", "is_red_flag", "is_ethical", "is_remote",
+    "description_vector", "ingestion_date",
+]
+
+
+def validate_columns(df: DataFrame, required: list[str], context: str = "") -> None:
+    """Vérifie que toutes les colonnes requises sont présentes dans le DataFrame."""
+    missing = [c for c in required if c not in df.columns]
+    if missing:
+        msg = f"Colonnes obligatoires manquantes {context}: {missing}"
+        logger.error(f"❌ {msg}")
+        raise ValueError(msg)
+
 
 def create_spark_session() -> SparkSession:
     """
@@ -418,28 +440,6 @@ def run_pipeline() -> None:
     """Exécution complète du pipeline de transformation Silver."""
     spark = create_spark_session()
 
-    silver_columns = [
-        "job_id",
-        "title",
-        "company_name",
-        "location_clean",
-        "description",
-        "url",
-        "published_at",
-        "source_name",
-        "data_quality_score",
-        "extracted_skills",
-        "salary_min_numeric",
-        "exp_min_required",
-        "is_junior",
-        "is_senior",
-        "is_red_flag",
-        "is_ethical",
-        "is_remote",
-        "description_vector",
-        "ingestion_date",
-    ]
-
     try:
         # Ingestion par source
         df_adz = stage_adzuna(spark)
@@ -453,15 +453,17 @@ def run_pipeline() -> None:
 
         # Union et Transformation globale
         raw_df = df_adz.unionByName(df_ft).unionByName(df_js).unionByName(df_jb)
+        validate_columns(raw_df, REQUIRED_STAGE_COLUMNS, "après union des sources")
         df_silver = apply_silver_logic(raw_df)
 
         final_count = df_silver.count()
+        validate_columns(df_silver, SILVER_OUTPUT_COLUMNS, "avant écriture Silver")
 
         # Écriture partitionnée au format Parquet
         logger.info(
             f"🚀 Écriture de {final_count} offres uniques vers la couche Silver..."
         )
-        df_silver.select(silver_columns).write.mode("overwrite").partitionBy(
+        df_silver.select(SILVER_OUTPUT_COLUMNS).write.mode("overwrite").partitionBy(
             "ingestion_date"
         ).parquet(SILVER_PATH)
 

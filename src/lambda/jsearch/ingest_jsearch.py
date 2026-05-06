@@ -52,6 +52,10 @@ def fetch_jsearch_jobs(keyword: str, where: str, api_key: str) -> Dict[str, Any]
         payload = response.json()
 
         results = payload.get("data", [])
+        if not isinstance(results, list):
+            raise ValueError(
+                f"Schéma invalide : 'data' devrait être une liste, reçu {type(results).__name__}"
+            )
 
         return {
             "count": len(results),
@@ -82,6 +86,14 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
 
         # 3. Extraction
         data = fetch_jsearch_jobs(keyword, where, api_key)
+
+        # Contrôle de schéma : validation du payload retourné
+        if "results" not in data:
+            raise ValueError("Schéma invalide : clé 'results' absente du payload")
+        if not isinstance(data.get("results"), list):
+            raise ValueError(
+                f"Schéma invalide : 'results' devrait être une liste, reçu {type(data.get('results')).__name__}"
+            )
 
         # 4. Partitionnement temporel pour la couche Bronze
         now = datetime.now()

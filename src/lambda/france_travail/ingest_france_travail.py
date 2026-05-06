@@ -96,9 +96,15 @@ def fetch_france_travail_offers(
     response.raise_for_status()
     payload = response.json()
 
+    results_list = payload.get("resultats", [])
+    if not isinstance(results_list, list):
+        raise ValueError(
+            f"Schéma invalide : 'resultats' devrait être une liste, reçu {type(results_list).__name__}"
+        )
+
     return {
         "count": payload.get("nbResultats", 0),
-        "results": payload.get("resultats", []),
+        "results": results_list,
         "keyword": keywords,
         "ingested_at": datetime.now().isoformat(),
     }
@@ -122,6 +128,14 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         data = fetch_france_travail_offers(
             keyword, departement, client_id, client_secret
         )
+
+        # Contrôle de schéma : validation du payload retourné
+        if "results" not in data:
+            raise ValueError("Schéma invalide : clé 'results' absente du payload")
+        if not isinstance(data.get("results"), list):
+            raise ValueError(
+                f"Schéma invalide : 'results' devrait être une liste, reçu {type(data.get('results')).__name__}"
+            )
 
         # 4. Organisation du stockage (Medallion Architecture)
         now = datetime.now()

@@ -70,6 +70,11 @@ def fetch_adzuna_jobs(
 
         current_page += 1
 
+    if not isinstance(combined_results, list):
+        raise ValueError(
+            f"Schéma invalide : 'results' devrait être une liste, reçu {type(combined_results).__name__}"
+        )
+
     return {
         "count": total_count,
         "results": combined_results,
@@ -97,6 +102,14 @@ def lambda_handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
 
         # 3. Extraction des données
         data = fetch_adzuna_jobs(keyword, where, app_id, app_key)
+
+        # Contrôle de schéma : validation du payload retourné
+        if "results" not in data:
+            raise ValueError("Schéma invalide : clé 'results' absente du payload")
+        if not isinstance(data.get("results"), list):
+            raise ValueError(
+                f"Schéma invalide : 'results' devrait être une liste, reçu {type(data.get('results')).__name__}"
+            )
 
         # 4. Génération du chemin de stockage (Architecture Médaillon - Bronze)
         now = datetime.now()
