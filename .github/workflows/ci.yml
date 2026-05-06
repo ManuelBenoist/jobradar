@@ -75,4 +75,4 @@ jobs:
 
       - name: Run Spark Integration Tests
         run: |
-          python -m pytest tests/ -k "spark" --cov=src --cov-append --cov-report=term-missing
+          python -m pytest tests/integration/test_spark_pipeline.py tests/spark/ --cov=src --cov-append --cov-report=term-missing
