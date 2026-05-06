@@ -13,7 +13,7 @@ variable "project_name" {
 variable "adzuna_app_id" {
   description = "ID de l'application Adzuna"
   type        = string
-  sensitive   = true 
+  sensitive   = true
 }
 
 variable "adzuna_app_key" {

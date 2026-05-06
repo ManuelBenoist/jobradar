@@ -13,9 +13,9 @@ resource "aws_glue_catalog_table" "processed_jobs" {
   table_type    = "EXTERNAL_TABLE"
 
   parameters = {
-    "classification"   = "parquet"
-    "compressionType"  = "snappy"
-    "typeOfData"       = "file"
+    "classification"  = "parquet"
+    "compressionType" = "snappy"
+    "typeOfData"      = "file"
   }
 
   storage_descriptor {
@@ -172,7 +172,7 @@ resource "aws_athena_workgroup" "jobradar_workgroup" {
     }
 
     # Limite de sécurité : 100MB par requête
-    bytes_scanned_cutoff_per_query = 104857600 
+    bytes_scanned_cutoff_per_query = 104857600
   }
 
   force_destroy = true

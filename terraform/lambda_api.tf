@@ -9,8 +9,8 @@ resource "aws_iam_role" "lambda_exec_role" {
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [{
-      Action = "sts:AssumeRole"
-      Effect = "Allow"
+      Action    = "sts:AssumeRole"
+      Effect    = "Allow"
       Principal = { Service = "lambda.amazonaws.com" }
     }]
   })
@@ -38,11 +38,11 @@ resource "aws_iam_role_policy_attachment" "lambda_logging" {
 resource "aws_lambda_function" "jobradar_api" {
   function_name = "jobradar-api-serverless-v2"
   role          = aws_iam_role.lambda_exec_role.arn
-  
-  package_type  = "Image"
-  image_uri     = "${aws_ecr_repository.jobradar_api.repository_url}:latest"
 
-  timeout     = 30  # Temps nécessaire pour les requêtes Athena complexes
+  package_type = "Image"
+  image_uri    = "${aws_ecr_repository.jobradar_api.repository_url}:latest"
+
+  timeout     = 30 # Temps nécessaire pour les requêtes Athena complexes
   memory_size = 512
 
   environment {

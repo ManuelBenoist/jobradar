@@ -6,7 +6,7 @@
 # Adzuna
 data "archive_file" "adzuna_zip" {
   type        = "zip"
-  source_dir  = "${path.module}/../src/lambda/adzuna" 
+  source_dir  = "${path.module}/../src/lambda/adzuna"
   output_path = "${path.module}/adzuna_lambda.zip"
 }
 
@@ -14,10 +14,10 @@ resource "aws_lambda_function" "ingest_adzuna" {
   function_name    = "jobradar-ingest-adzuna"
   filename         = data.archive_file.adzuna_zip.output_path
   source_code_hash = data.archive_file.adzuna_zip.output_base64sha256
-  role             = aws_iam_role.lambda_ingestion_role.arn 
-  handler          = "ingest_adzuna.lambda_handler"         
-  runtime          = "python3.11"                           
-  timeout          = 60                                     
+  role             = aws_iam_role.lambda_ingestion_role.arn
+  handler          = "ingest_adzuna.lambda_handler"
+  runtime          = "python3.11"
+  timeout          = 60
 
   environment {
     variables = {
@@ -31,7 +31,7 @@ resource "aws_lambda_function" "ingest_adzuna" {
 # France Travail
 data "archive_file" "france_travail_zip" {
   type        = "zip"
-  source_dir  = "${path.module}/../src/lambda/france_travail" 
+  source_dir  = "${path.module}/../src/lambda/france_travail"
   output_path = "${path.module}/france_travail_lambda.zip"
 }
 
@@ -40,9 +40,9 @@ resource "aws_lambda_function" "ingest_france_travail" {
   filename         = data.archive_file.france_travail_zip.output_path
   source_code_hash = data.archive_file.france_travail_zip.output_base64sha256
   role             = aws_iam_role.lambda_ingestion_role.arn
-  handler          = "ingest_france_travail.lambda_handler"         
-  runtime          = "python3.11"                           
-  timeout          = 60                                     
+  handler          = "ingest_france_travail.lambda_handler"
+  runtime          = "python3.11"
+  timeout          = 60
 
   environment {
     variables = {
@@ -56,7 +56,7 @@ resource "aws_lambda_function" "ingest_france_travail" {
 # JSEARCH
 data "archive_file" "jsearch_zip" {
   type        = "zip"
-  source_dir  = "${path.module}/../src/lambda/jsearch" 
+  source_dir  = "${path.module}/../src/lambda/jsearch"
   output_path = "${path.module}/jsearch_lambda.zip"
 }
 
@@ -81,7 +81,7 @@ resource "aws_lambda_function" "ingest_jsearch" {
 # Jooble
 data "archive_file" "jooble_zip" {
   type        = "zip"
-  source_dir  = "${path.module}/../src/lambda/jooble" 
+  source_dir  = "${path.module}/../src/lambda/jooble"
   output_path = "${path.module}/jooble_lambda.zip"
 }
 
@@ -97,8 +97,8 @@ resource "aws_lambda_function" "ingest_jooble" {
 
   environment {
     variables = {
-      BUCKET_NAME      = aws_s3_bucket.raw.id
-      JOOBLE_API_KEY   = var.jooble_api_key
+      BUCKET_NAME    = aws_s3_bucket.raw.id
+      JOOBLE_API_KEY = var.jooble_api_key
     }
   }
 }

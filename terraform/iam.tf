@@ -10,8 +10,8 @@ resource "aws_iam_role" "lambda_ingestion_role" {
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [{
-      Action = "sts:AssumeRole"
-      Effect = "Allow"
+      Action    = "sts:AssumeRole"
+      Effect    = "Allow"
       Principal = { Service = "lambda.amazonaws.com" }
     }]
   })
@@ -63,7 +63,7 @@ resource "aws_iam_policy" "athena_query_policy" {
         # Interaction avec le Data Catalog (requis pour MSCK REPAIR et lecture des schémas)
         Effect = "Allow"
         Action = [
-          "glue:GetDatabase", "glue:GetTable", 
+          "glue:GetDatabase", "glue:GetTable",
           "glue:GetPartitions", "glue:BatchCreatePartition"
         ]
         Resource = ["*"]
