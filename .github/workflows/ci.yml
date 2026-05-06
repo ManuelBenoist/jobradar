@@ -28,6 +28,7 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install ruff pytest pytest-cov httpx moto
+          pip install fastapi mangum pyathena
           if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
 
       - name: Run Ruff (Static Analysis)
