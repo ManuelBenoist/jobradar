@@ -15,10 +15,17 @@ profile AS (
 
 jobs_base AS (
     /* Sélection des offres avec validation du vecteur NLP (dimension 384 pour all-MiniLM-L6-v2) */
-    SELECT * 
-    FROM {{ ref('stg_silver_jobs') }}
-    WHERE description_vector IS NOT NULL 
-      AND cardinality(description_vector) = 384
+    SELECT * EXCEPT (rn) FROM (
+        SELECT *,
+               ROW_NUMBER() OVER (
+                   PARTITION BY COALESCE(url, job_id)
+                   ORDER BY published_at DESC, ingestion_date DESC
+               ) AS rn
+        FROM {{ ref('stg_silver_jobs') }}
+        WHERE description_vector IS NOT NULL
+          AND cardinality(description_vector) = 384
+    )
+    WHERE rn = 1
 ),
 
 -- 2. MOTEUR IA : CALCUL DE LA SIMILARITÉ COSINUS

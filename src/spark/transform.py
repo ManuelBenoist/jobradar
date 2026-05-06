@@ -397,14 +397,15 @@ def apply_silver_logic(df: DataFrame) -> DataFrame:
     df = df.filter(F.col("rn_id") == 1).drop("rn_id")
 
     # 7b. Déduplication par empreinte (title + company_name + location_clean)
+    unicode_dash = "[\u2013\u2014\u2015]"
     df = df.withColumn(
         "dedup_id",
         F.sha2(
             F.concat_ws(
                 "||",
-                F.lower(F.col("title")),
-                F.lower(F.col("company_name")),
-                F.col("location_clean"),
+                F.lower(F.regexp_replace(F.trim(F.col("title")), unicode_dash, "-")),
+                F.lower(F.regexp_replace(F.trim(F.col("company_name")), unicode_dash, "-")),
+                F.lower(F.trim(F.col("location_clean"))),
             ),
             256,
         ),
