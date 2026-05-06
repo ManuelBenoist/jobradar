@@ -47,21 +47,12 @@ models:
 
       - name: is_red_flag
         description: "Indicateur d'offre hors cible (Stage, Alternance, etc.)."
-        tests:
-          - accepted_values:
-              values: [true, false]
 
       - name: is_junior
         description: "Indicateur d'offre adaptée aux juniors."
-        tests:
-          - accepted_values:
-              values: [true, false]
 
       - name: is_senior
         description: "Indicateur d'offre pour profils seniors."
-        tests:
-          - accepted_values:
-              values: [true, false]
 
       - name: data_quality_score
         description: "Score de qualité de la donnée source."

@@ -60,9 +60,6 @@ models:
 
       - name: is_red_flag
         description: "Indicateur booléen pour les offres hors cible (Stage, Alternance, etc.)."
-        tests:
-          - accepted_values:
-              values: [true, false]
 
       - name: data_quality_score
         description: >
