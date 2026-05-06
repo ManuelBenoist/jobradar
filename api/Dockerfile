@@ -1,5 +1,5 @@
 # Image de base optimisée pour AWS Lambda (Python 3.11)
-FROM public.ecr.aws/lambda/python:3.11
+FROM public.ecr.aws/lambda/python:3.13
 
 # Désactivation de la génération de fichiers .pyc pour optimiser l'espace
 ENV PYTHONDONTWRITEBYTECODE=1
