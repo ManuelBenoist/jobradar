@@ -391,7 +391,12 @@ def apply_silver_logic(df: DataFrame) -> DataFrame:
         .otherwise(F.lit(0.8)),
     )
 
-    # 7. Déduplication par empreinte (Window Function)
+    # 7a. Déduplication par (job_id, source_name) — garantie API
+    window_id = Window.partitionBy("job_id", "source_name").orderBy(F.col("published_at").desc())
+    df = df.withColumn("rn_id", F.row_number().over(window_id))
+    df = df.filter(F.col("rn_id") == 1).drop("rn_id")
+
+    # 7b. Déduplication par empreinte (title + company_name + location_clean)
     df = df.withColumn(
         "dedup_id",
         F.sha2(
@@ -468,6 +473,28 @@ def run_pipeline() -> None:
         ).parquet(SILVER_PATH)
 
         # Mise à jour du catalogue Athena
+        logger.info("🔧 Nettoyage du metastore Glue (partitions orphelines)...")
+        glue = boto3.client("glue", region_name="eu-west-3")
+
+        try:
+            response = glue.get_partitions(
+                DatabaseName="jobradar_db",
+                TableName="silver_jobs",
+            )
+            existing = response.get("Partitions", [])
+            if existing:
+                batch_size = 25
+                for i in range(0, len(existing), batch_size):
+                    batch = [{"Values": p["Values"]} for p in existing[i:i + batch_size]]
+                    glue.batch_delete_partition(
+                        DatabaseName="jobradar_db",
+                        TableName="silver_jobs",
+                        PartitionsToDelete=batch,
+                    )
+                logger.info(f"🗑️ {len(existing)} anciennes partitions supprimées du metastore")
+        except glue.exceptions.EntityNotFoundException:
+            logger.warning("⚠️ Table silver_jobs non trouvée dans Glue, skip nettoyage")
+
         logger.info("🔧 Synchronisation du catalogue Athena (MSCK REPAIR)...")
         athena = boto3.client("athena", region_name="eu-west-3")
         athena.start_query_execution(
