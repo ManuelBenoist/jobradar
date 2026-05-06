@@ -16,11 +16,12 @@ terraform {
     }
   }
 
-  # Stockage distant de l'état (State) pour permettre le travail collaboratif et la CI/CD
+  # Stockage distant de l'état (State) avec verrouillage DynamoDB
   backend "s3" {
-    bucket = "jobradar-tfstate-manuel-cloud"
-    key    = "terraform.tfstate"
-    region = "eu-west-3"
+    bucket         = "jobradar-tfstate-manuel-cloud"
+    key            = "terraform.tfstate"
+    region         = "eu-west-3"
+    dynamodb_table = "jobradar-tfstate-locks"
   }
 }
 

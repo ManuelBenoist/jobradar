@@ -19,6 +19,22 @@ resource "aws_s3_bucket_lifecycle_configuration" "athena_results_lifecycle" {
   }
 }
 
+# --- VERROUILLAGE DU STATE (DynamoDB) ---
+resource "aws_dynamodb_table" "terraform_locks" {
+  name         = "jobradar-tfstate-locks"
+  billing_mode = "PAY_PER_REQUEST"
+  hash_key     = "LockID"
+
+  attribute {
+    name = "LockID"
+    type = "S"
+  }
+
+  tags = {
+    Name = "jobradar-tfstate-locks"
+  }
+}
+
 # --- REGISTRE DE CONTENEURS (ECR) ---
 resource "aws_ecr_repository" "jobradar_api" {
   name                 = "jobradar-api"

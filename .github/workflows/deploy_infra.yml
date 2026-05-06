@@ -14,7 +14,7 @@ on:
 
 jobs:
   terraform-deploy:
-    name: Terraform Init & Apply
+    name: Terraform Init, Plan & Apply
     runs-on: ubuntu-latest
     
     steps:
@@ -39,7 +39,30 @@ jobs:
             pip install requests --target src/lambda/$dir/
           done
 
-      - name: Terraform Init & Apply
+      - name: Terraform Init
+        working-directory: ./terraform
+        env:
+          TF_VAR_athena_staging_dir: "s3://jobradar-athena-results-manuel-cloud/athena-temp/"
+        run: terraform init
+
+      - name: Terraform Validate
+        working-directory: ./terraform
+        run: terraform validate
+
+      - name: Terraform Plan
+        working-directory: ./terraform
+        env:
+          TF_VAR_jsearch_api_key: ${{ secrets.JSEARCH_API_KEY }}
+          TF_VAR_jooble_api_key: ${{ secrets.JOOBLE_API_KEY }}
+          TF_VAR_adzuna_app_id: ${{ secrets.ADZUNA_APP_ID }}
+          TF_VAR_adzuna_app_key: ${{ secrets.ADZUNA_APP_KEY }}
+          TF_VAR_ft_client_id: ${{ secrets.FRANCE_TRAVAIL_CLIENT_ID }}
+          TF_VAR_ft_client_secret: ${{ secrets.FRANCE_TRAVAIL_CLIENT_SECRET }}
+          TF_VAR_internal_api_key: ${{ secrets.INTERNAL_API_KEY }}
+          TF_VAR_athena_staging_dir: "s3://jobradar-athena-results-manuel-cloud/athena-temp/"
+        run: terraform plan -no-color
+
+      - name: Terraform Apply
         working-directory: ./terraform
         env:
           # Injection des secrets GitHub dans les variables Terraform via le préfixe TF_VAR_
