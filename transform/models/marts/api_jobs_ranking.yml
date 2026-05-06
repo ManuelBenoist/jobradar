@@ -1,0 +1,42 @@
+version: 2
+
+models:
+  - name: api_jobs_ranking
+    description: >
+      Vue finale optimisée pour le Dashboard Streamlit et FastAPI.
+      Colonnes renommées pour la consommation directe par l'API.
+    columns:
+      - name: title
+        description: "Intitulé du poste."
+        tests:
+          - not_null
+
+      - name: company_name
+        description: "Nom de l'entreprise."
+
+      - name: matching_score
+        description: "Score final de matching (0-100)."
+        tests:
+          - not_null
+
+      - name: semantic_score
+        description: "Score NLP."
+
+      - name: rules_score
+        description: "Score règles métier."
+
+      - name: published_at
+        description: "Date de publication."
+        tests:
+          - not_null
+
+      - name: ingestion_date
+        description: "Date d'ingestion."
+        tests:
+          - not_null
+
+      - name: platform
+        description: "Source de l'offre."
+        tests:
+          - accepted_values:
+              values: ['Adzuna', 'France Travail', 'Jooble', 'JSearch']

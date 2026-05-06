@@ -1,0 +1,72 @@
+version: 2
+
+models:
+  - name: fct_jobs
+    description: >
+      Moteur de scoring hybride — combine similarité cosinus (NLP) et règles métier.
+    columns:
+      - name: job_id
+        description: "Identifiant unique de l'offre."
+        tests:
+          - unique
+          - not_null
+
+      - name: matching_score
+        description: "Score final de matching (0-100)."
+        tests:
+          - not_null
+
+      - name: semantic_score
+        description: "Score de similarité sémantique NLP (0-100)."
+
+      - name: rules_score
+        description: "Score métier calculé par règles SQL (0-100)."
+
+      - name: title
+        description: "Intitulé du poste."
+        tests:
+          - not_null
+
+      - name: url
+        description: "URL de l'offre originale."
+        tests:
+          - not_null
+
+      - name: published_at
+        description: "Date de publication normalisée."
+        tests:
+          - not_null
+
+      - name: source_name
+        description: "Source de l'offre (Adzuna, France Travail, Jooble, JSearch)."
+        tests:
+          - accepted_values:
+              values: ['Adzuna', 'France Travail', 'Jooble', 'JSearch']
+
+      - name: is_red_flag
+        description: "Indicateur d'offre hors cible (Stage, Alternance, etc.)."
+        tests:
+          - accepted_values:
+              values: [true, false]
+
+      - name: is_junior
+        description: "Indicateur d'offre adaptée aux juniors."
+        tests:
+          - accepted_values:
+              values: [true, false]
+
+      - name: is_senior
+        description: "Indicateur d'offre pour profils seniors."
+        tests:
+          - accepted_values:
+              values: [true, false]
+
+      - name: data_quality_score
+        description: "Score de qualité de la donnée source."
+        tests:
+          - not_null
+
+      - name: ingestion_date
+        description: "Date de traitement Spark."
+        tests:
+          - not_null
