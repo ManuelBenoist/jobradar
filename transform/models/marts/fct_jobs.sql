@@ -15,7 +15,13 @@ profile AS (
 
 jobs_base AS (
     /* Sélection des offres avec validation du vecteur NLP (dimension 384 pour all-MiniLM-L6-v2) */
-    SELECT * EXCEPT (rn) FROM (
+    SELECT
+        job_id, source_name, url, data_quality_score, ingestion_date,
+        title, company_name, job_location, description, published_at,
+        extracted_skills, salary_min_numeric, exp_min_required,
+        description_vector, is_junior, is_senior, is_red_flag,
+        is_ethical, is_remote
+    FROM (
         SELECT *,
                ROW_NUMBER() OVER (
                    PARTITION BY COALESCE(url, job_id)
