@@ -65,3 +65,4 @@ src/lambda/jooble/*
 .cursor/
 .idea/
 /node_modules/
+AGENTS.md
