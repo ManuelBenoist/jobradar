@@ -90,5 +90,62 @@ Le projet suit une stratégie de test multicouche, exécutée automatiquement en
 2. **Profil** : Générer votre vecteur de référence en modifiant l'offre idéale type via `src/scripts/generate_profile.py`.
 3. **CI/CD** : Configurer les secrets GitHub pour déclencher la pipeline automatique.
 
+## ♻️ Relancer le projet depuis zéro
+
+Si l'infra AWS a été détruite (`terraform destroy`) et que tu veux tout remettre fonctionnel :
+
+### 1. Restaurer les clés API
+Copie `.env.example` vers `.env` et remplis des clés valides pour :
+- Adzuna, France Travail, JSearch (RapidAPI), Jooble
+- Des credentials AWS avec les permissions IAM suffisantes
+- Une `INTERNAL_API_KEY` aléatoire
+
+### 2. Déployer l'infrastructure
+```bash
+# Installer les dépendances pip dans les dossiers Lambda (nécessaire pour les ZIP)
+for dir in adzuna france_travail jsearch jooble; do
+  pip install requests --target src/lambda/$dir/
+done
+
+# Déployer toutes les ressources AWS
+cd terraform
+terraform init
+terraform apply   # va demander les TF_VAR_* (clés API)
+```
+
+### 3. Amorcer le data lake
+```bash
+# Invoquer chaque Lambda manuellement pour backfill :
+aws lambda invoke --function-name jobradar-ingest-adzuna       --payload '{"keyword":"Data Engineer","where":"Nantes"}' /dev/null
+aws lambda invoke --function-name jobradar-ingest-france-travail --payload '{"keyword":"Data Engineer","departement":44}' /dev/null
+aws lambda invoke --function-name jobradar-ingest-jsearch      --payload '{"keyword":"Data Engineer","where":"Nantes"}' /dev/null
+aws lambda invoke --function-name jobradar-ingest-jooble       --payload '{"keyword":"Data Engineer","where":"Nantes"}' /dev/null
+```
+
+### 4. Lancer le pipeline manuellement
+```bash
+# Silver layer (Spark)
+python src/spark/transform.py
+
+# Gold layer (dbt sur Athena)
+cd transform
+dbt clean && dbt deps && dbt run --target dev --profiles-dir . && dbt test --target dev --profiles-dir .
+```
+
+### 5. Déployer l'API
+```bash
+cd api
+docker build --platform linux/amd64 --provenance=false -t $ECR_REGISTRY/jobradar-api:latest .
+docker push $ECR_REGISTRY/jobradar-api:latest
+aws lambda update-function-code --function-name jobradar-api-serverless-v2 --image-uri $ECR_REGISTRY/jobradar-api:latest
+```
+
+### 6. Restaurer le dashboard Streamlit Cloud
+- Crée une nouvelle app Streamlit Cloud pointant vers `ui/app.py` de ce repo
+- Ajoute les secrets : `API_URL` et `INTERNAL_API_KEY`
+
+### 7. Réactiver les GitHub Actions
+Dans les settings du repo sur GitHub : **Actions > General > Allow all actions**
+
 ---
 *Ce projet démontre une maitrise de différents outils de Data Engineering (Medallion, Spark, dbt) et en Cloud Architecture (AWS Serverless, Terraform).*
