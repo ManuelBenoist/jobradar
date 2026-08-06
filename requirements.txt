@@ -9,7 +9,7 @@ dbt-core==1.11.8
 dbt-athena-community==1.10.0
 
 # --- Extraction & Scraping ---
-requests==2.33.0
+requests==2.33.1
 
 # --- Dashboard ---
 streamlit==1.56.0
