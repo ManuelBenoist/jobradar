@@ -1,6 +1,6 @@
 fastapi==0.110.0
 mangum==0.17.0
 boto3==1.34.0
-pyathena==3.0.0
+pyathena==3.30.1
 python-dotenv==1.2.2        # Mise à jour de sécurité
 requests==2.33.0            # Mise à jour de sécurité
